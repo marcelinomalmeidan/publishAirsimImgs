@@ -15,8 +15,8 @@
     <param name="Fy" value="320"/>
     <param name="cx" value="320"/>
     <param name="cy" value="240"/>
-    <param name="width" value="1280"/>  <!-- Width when calibrated!-->
-    <param name="height" value="720"/> <!-- Height when calibrated!-->
+    <param name="width" value="640"/>  <!-- Width when calibrated!-->
+    <param name="height" value="480"/> <!-- Height when calibrated!-->
 
     <!-- Depth baseline -->
     <param name="Tx" value="0.14"/> 
