@@ -26,11 +26,11 @@ This repo is supposed to run in Linux (only tested with Ubuntu 16.04, ROS Kineti
   - In order to run mavros, you can follow the example in /launch/mavrosAirsim.launch. Note that you will have to change the fcu_url parameter to match the IP/Ports in which Airsim is running. All these informations can be found in the settings.json file for your Airsim configuration. The ports you are looking for are the "LogViewerPort" and the "UdpPort". Note that the settings.json file have to be configured such that "LogViewerHostIp" and "UdpIp" both have the IP of the computer that will run mavros. 
   
 - Copy the present repo into your catkin workspace (e.g.):
-``` cd ~/catkin_ws/src 
-git clone https://github.com/marcelinomalmeidan/publishAirsimImgs.git ```
+``` cd ~/catkin_ws/src ```
+``` git clone https://github.com/marcelinomalmeidan/publishAirsimImgs.git ```
 - Open the CMakeLists.txt and change the aliases for ```Airlib_addr``` and ```catkin_workspace_path``` to match your local Airlib folder and your local catkin workspace folder.
-``` cd ~/catkin_ws
-catkin_make```
+``` cd ~/catkin_ws```
+``` catkin_make```
 
 ## Running image publisher
 - Run Airsim.
