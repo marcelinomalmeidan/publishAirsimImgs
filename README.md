@@ -16,6 +16,7 @@ This repo is supposed to run in Linux (only tested with Ubuntu 16.04, ROS Kineti
 - Then, you have to compile Airlib.
 
 ``` cd ~ ``` 
+
 ```  git clone https://github.com/Microsoft/AirSim.git ``` 
 
   - Replace the /Airsim/build.sh with the build.sh in /extras/ in the current repo.
@@ -32,11 +33,13 @@ This repo is supposed to run in Linux (only tested with Ubuntu 16.04, ROS Kineti
 - Copy the present repo into your catkin workspace (e.g.):
 
 ``` cd ~/catkin_ws/src ```
+
 ``` git clone https://github.com/marcelinomalmeidan/publishAirsimImgs.git ```
 
 - Open the CMakeLists.txt and change the aliases for ```Airlib_addr``` and ```catkin_workspace_path``` to match your local Airlib folder and your local catkin workspace folder.
 
 ``` cd ~/catkin_ws```
+
 ``` catkin_make```
 
 ## Running image publisher
