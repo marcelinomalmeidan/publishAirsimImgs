@@ -19,10 +19,10 @@ This repo is supposed to run in Linux (only tested with Ubuntu 16.04, ROS Kineti
 
 ```  git clone https://github.com/Microsoft/AirSim.git ``` 
 
-  - Replace the /Airsim/build.sh with the build.sh in /extras/ in the current repo.
-  - Replace the /Airsim/cmake/CMakeLists.txt with the CMakeLists1.txt in /extras/ in the current repo. Rename it to CMakeLists.txt.
-  - Replace the /Airsim/cmake/MavLinkCom/CMakeLists.txt with the CMakeLists2.txt in /extras/ in the current repo. Rename it to CMakeLists.txt.
-  - Run "build.sh" from Airsim's root directory.
+    - Replace the /Airsim/build.sh with the build.sh in /extras/ in the current repo.
+    - Replace the /Airsim/cmake/CMakeLists.txt with the CMakeLists1.txt in /extras/ in the current repo. Rename it to CMakeLists.txt.
+    - Replace the /Airsim/cmake/MavLinkCom/CMakeLists.txt with the CMakeLists2.txt in /extras/ in the current repo. Rename it to CMakeLists.txt.
+    - Run "build.sh" from Airsim's root directory.
   
 - If you want the tf tree to be published, you will need mavros to communicate with px4 and get its pose. Then, you need to install mavros as follows:
 
