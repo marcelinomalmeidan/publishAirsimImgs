@@ -1,4 +1,7 @@
-# publishAirsimImgs
+# Disclaimer
+Most of the code in this repo was developed by Behzad Boroujerdian and Hasan Genc from the Department Of Electrical and Computer Engineering at The University of Texas at Austin. I put some finishing touches and wrote the guidelines below in the hope that this will be useful for others. This is supposed to be a preliminary solution while Microsoft don't provide an alternative one.
+
+# Contents
 This repo allows you to publish images from airsim into ROS.
 Features within this repo:
 - Publishes RGB data into the topic /Airsim/image
