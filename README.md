@@ -10,7 +10,7 @@ Features within this repo:
 - Publishes a tf tree with the origin, the position/orientation of the quadcoper, and the position/orientation of the camera.
 
 ## Dependencies
-This repo is supposed to run in Linux (only tested with Ubuntu 16.04, ROS Kinetic). 
+This repo is supposed to run on Linux (only tested with Ubuntu 16.04, ROS Kinetic). 
 
 - Eigen
 
