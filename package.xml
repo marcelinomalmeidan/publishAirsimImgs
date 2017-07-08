@@ -22,13 +22,6 @@
   <!-- <url type="website">http://wiki.ros.org/airsim_img_publisher</url> -->
 
 
-  <!-- Author tags are optional, multiple are allowed, one per tag -->
-  <!-- Authors do not have to be maintainers, but could be -->
-  <!-- Example: -->
-  <author email="zaddan">Behzad</author>
-  <author email="hgenc">Hasan</author>
-
-
   <!-- The *_depend tags are used to specify dependencies -->
   <!-- Dependencies can be catkin packages or system dependencies -->
   <!-- Examples: -->
