@@ -1,13 +1,9 @@
 #include "input_sampler.h"
 #include <iostream>
-#include <chrono>
-#include <math.h>
-#include <iterator>
+#include <vector>
+#include <cstring>
 #include "common/Common.hpp"
-//#include "log__class.h"
-#include <fstream>
-using namespace std;
-//extern log__class log__f;
+
 input_sampler::input_sampler() : client(0)
 {
 	connect();
@@ -38,7 +34,7 @@ void input_sampler::connect(const std::string& ip_addr, uint16_t port)
 	client = new msr::airlib::RpcLibClient(ip_addr, port);
 }
 
-
+/*
 cv::Mat input_sampler:: poll_frame()
 {
     cv::Mat result;
@@ -109,4 +105,89 @@ cv::Mat input_sampler::poll_frame_depth()
 	//cv::resize(result, scaled, cv::Size(427,240));
 	//return scaled;
 	return resultGray;
+}
+*/
+
+static void convertToPlanDepth(const cv::Mat& input, cv::Mat& output, float f = 320)
+{
+	int width = input.cols;
+	int height = input.rows;
+
+	float center_i = width / 2.0f - 1;
+	float center_j = height / 2.0f - 1;
+
+	output = cv::Mat(height, width, CV_32FC1);
+
+	for (int i = 0; i < width; ++i) {
+		for (int j = 0; j < height; ++j) {
+			float dist = std::sqrt((i - center_i)*(i - center_i) + (j - center_j)*(j - center_j));
+			float denom = (dist / f);
+			denom *= denom;
+			denom = std::sqrt(1 + denom);
+			output.at<float>(j, i) = input.at<float>(j, i) / denom;
+		}
+	}
+}
+
+
+static void convertToDisparity(const cv::Mat& input, cv::Mat& output, float f = 320, float baseline_meters = 1)
+{
+	int width = input.cols;
+	int height = input.rows;
+	int size = width * height;
+
+	output = cv::Mat(height, width, CV_32FC1);
+
+	for (int i = 0; i < width; ++i) {
+		for (int j = 0; j < height; ++j) {
+			output.at<float>(j, i) = f * baseline_meters * (1.0f / input.at<float>(j, i));
+		}
+	}
+}
+
+struct image_response input_sampler::poll_frame()
+{
+	using ImageRequest = msr::airlib::DroneControllerBase::ImageRequest;
+	using ImageResponse = msr::airlib::VehicleCameraBase::ImageResponse;
+	using ImageType_ = msr::airlib::VehicleCameraBase::ImageType_;
+
+	struct image_response result;
+	const int max_tries = 1000000;
+
+	std::vector<ImageRequest> request = {
+		ImageRequest(0, ImageType_::Scene),
+		ImageRequest(1, ImageType_::Scene),
+		ImageRequest(1, ImageType_::Depth)
+	};
+
+	std::vector<ImageResponse> response = client->simGetImages(request);
+
+	int i;
+	for (i = 0; response.size() != request.size() && i < max_tries; i++) {
+		response = client->simGetImages(request);
+	}
+
+	if (response.size() == request.size()) {
+#if CV_MAJOR_VERSION==3
+		result.left = cv::imdecode(response.at(0).image_data, cv::IMREAD_COLOR);
+		result.right = cv::imdecode(response.at(1).image_data, cv::IMREAD_COLOR);
+		result.depth = cv::imdecode(response.at(2).image_data, cv::IMREAD_GRAYSCALE);
+#else
+		result.left = cv::imdecode(response.at(0).image_data, CV_LOAD_IMAGE_COLOR);
+		result.right = cv::imdecode(response.at(1).image_data, CV_LOAD_IMAGE_COLOR);
+		result.depth = cv::imdecode(response.at(2).image_data, CV_LOAD_IMAGE_GRAYSCALE);
+#endif
+		cv::Mat depth_float;
+
+		result.depth.convertTo(depth_float, CV_32FC1);
+
+		convertToPlanDepth(depth_float, result.planar_depth);
+
+		float f = depth_float.rows / 2.0 - 1;
+		convertToDisparity(result.planar_depth, result.disparity, f, 25 / 100.0f);
+	} else {
+		std::cerr << "Images not returned successfully" << std::endl;
+	}
+
+	return result;
 }

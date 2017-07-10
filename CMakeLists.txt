@@ -4,7 +4,7 @@ project(airsim_img_publisher)
 
 
 set (Airlib_addr  $ENV{HOME}/AirSim/AirLib)
-set (catkin_workspace_path ~/catkin_ws) 
+set (catkin_workspace_path $ENV{HOME}/catkin_ws) 
 
 
 ## Compile as C++11, supported in ROS Kinetic and newer
@@ -20,8 +20,8 @@ include_directories(
     ${Airlib_addr}/include/controllers
     ${EIGEN3_INCLUDE_DIR}
     #/usr/local/cuda/include/
-   ${catkin_workspace_path}/src/airsim_img_publisher/include 
-   ${catkin_workspace_path}/src/airsim_img_publisher/src
+   ${catkin_workspace_path}/src/publishAirsimImgs/include 
+   ${catkin_workspace_path}/src/publishAirsimImgs/src
    )
 link_directories(
     ${Airlib_addr}/lib 

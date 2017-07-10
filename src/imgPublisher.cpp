@@ -77,7 +77,7 @@ int main(int argc, char **argv)
   //Start ROS ----------------------------------------------------------------
   ros::init(argc, argv, "airsim_imgPublisher");
   ros::NodeHandle n;
-  ros::Rate loop_rate(100);
+  ros::Rate loop_rate(10);
 
   //Subscribers --------------------------------------------------------------
   std::string odomTopic;
@@ -121,38 +121,52 @@ int main(int argc, char **argv)
   {
 
     //Get image data
-    img = input_sampler__obj.poll_frame();
-    imgDepth8 = input_sampler__obj.poll_frame_depth();
-    imgDepth8.convertTo(imgDepth16,CV_16U,255);
+    // img = input_sampler__obj.poll_frame();
+    // imgDepth8 = input_sampler__obj.poll_frame_depth();
+    // imgDepth8.convertTo(imgDepth16,CV_16U,255);
     // cv::imshow(display_name, img);
     // cv::waitKey(10); //I think we need this otherwise the image shown 
     //                   // is too fast to be observerd
 
     // *** F:DN conversion of opencv images to ros images
-    msgImg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", img).toImageMsg();
-    msgDepth8 = cv_bridge::CvImage(std_msgs::Header(), "mono8", invertImg8(imgDepth8)).toImageMsg();
-    msgDepth16 = cv_bridge::CvImage(std_msgs::Header(), "16UC1", invertImg16(imgDepth16)).toImageMsg();
+    // msgImg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", img).toImageMsg();
+    // msgDepth8 = cv_bridge::CvImage(std_msgs::Header(), "mono8", invertImg8(imgDepth8)).toImageMsg();
+    // msgDepth16 = cv_bridge::CvImage(std_msgs::Header(), "16UC1", invertImg16(imgDepth16)).toImageMsg();
 
     //Stamp messages
-    msgCameraInfo.header.stamp = ros::Time::now();
-    msgImg->header.stamp = msgCameraInfo.header.stamp;
-    msgDepth8->header.stamp =  msgCameraInfo.header.stamp;
-    msgDepth16->header.stamp =  msgCameraInfo.header.stamp;
+    // msgCameraInfo.header.stamp = ros::Time::now();
+    // msgImg->header.stamp = msgCameraInfo.header.stamp;
+    // msgDepth8->header.stamp =  msgCameraInfo.header.stamp;
+    // msgDepth16->header.stamp =  msgCameraInfo.header.stamp;
     
 
     //Publish images
-    ROS_INFO("New images arrived! Publishing...");
-    img_pub.publish(msgImg);
-    depth8_pub.publish(msgDepth8);
-    depth16_pub.publish(msgDepth16);
-    imgParam_pub.publish(msgCameraInfo);
+    // ROS_INFO("New images arrived! Publishing...");
+    // img_pub.publish(msgImg);
+    // depth8_pub.publish(msgDepth8);
+    // depth16_pub.publish(msgDepth16);
+    // imgParam_pub.publish(msgCameraInfo);
+
+    auto imgs = input_sampler__obj.poll_frame();
+
+    //cv::imshow("left", imgs.left);
+    //cv::imshow("right", imgs.right);
+    cv::imshow("depth", imgs.depth);
+
+    imgs.planar_depth.convertTo(imgs.planar_depth, CV_8UC1);
+    cv::imshow("planar_depth", imgs.planar_depth);
+
+    imgs.disparity.convertTo(imgs.disparity, CV_8UC1);
+    cv::imshow("disparity", imgs.disparity);
+
+    cv::waitKey(10);
 
     ros::spinOnce();
-
     
     loop_rate.sleep();
   }
 
+  cv::destroyAllWindows();
 
   return 0;
 }

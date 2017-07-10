@@ -3,17 +3,24 @@
 
 #include <stdint.h>
 #include <string>
-#include <thread>
-#include <mutex>
-#include <atomic>
-#include <list>
 #include <opencv2/opencv.hpp>
 #include "rpc/RpcLibClient.hpp"
-#include "coord.h"
-#include "VehicleCamera.hpp"
+#include <geometry_msgs/Pose.h>
 
 //#include "configs.h"
 // Control functions
+
+struct image_response {
+	cv::Mat left;
+	cv::Mat right;
+	
+	cv::Mat depth;
+	cv::Mat planar_depth;
+	cv::Mat disparity;
+	
+	geometry_msgs::Pose pose;
+};
+
 class input_sampler {
 public:
 	input_sampler();
@@ -26,19 +33,12 @@ public:
 	void connect(const std::string& ip_addr, uint16_t port);
 
 	// *** F:DN Camera functions
-	cv::Mat poll_frame();
-	cv::Mat poll_frame_depth();
-
+	// cv::Mat poll_frame();
+	// cv::Mat poll_frame_depth();
+	struct image_response poll_frame();
 
 private:
-	//void buffer_images();
-
 	msr::airlib::RpcLibClient * client;
-	msr::airlib::VehicleCamera::ImageType cam_type;
-	std::list<cv::Mat> cam_buf;
-	//std::mutex cam_buf_mutex;
-	//std::thread cam_thread;
-	//std::atomic<bool> stop_buffer_flag;
 };
 
 #endif
