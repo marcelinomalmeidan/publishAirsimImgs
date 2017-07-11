@@ -35,7 +35,7 @@ public:
 	// *** F:DN Camera functions
 	// cv::Mat poll_frame();
 	// cv::Mat poll_frame_depth();
-	struct image_response poll_frame();
+	struct image_response poll_frame(float scale);
 
 private:
 	msr::airlib::RpcLibClient * client;

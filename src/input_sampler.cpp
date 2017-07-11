@@ -145,7 +145,7 @@ static void convertToDisparity(const cv::Mat& input, cv::Mat& output, float f = 
 	}
 }
 
-struct image_response input_sampler::poll_frame()
+struct image_response input_sampler::poll_frame(float scale)
 {
 	using ImageRequest = msr::airlib::DroneControllerBase::ImageRequest;
 	using ImageResponse = msr::airlib::VehicleCameraBase::ImageResponse;
@@ -178,13 +178,15 @@ struct image_response input_sampler::poll_frame()
 		result.depth = cv::imdecode(response.at(2).image_data, CV_LOAD_IMAGE_GRAYSCALE);
 #endif
 		cv::Mat depth_float;
-		result.depth.convertTo(depth_float, CV_32FC1);
+		result.depth.convertTo(depth_float, CV_32FC1, scale);
 
 		convertToPlanDepth(depth_float, result.planar_depth);
 
 		float f = depth_float.cols / 2.0;
 		convertToDisparity(result.planar_depth, result.disparity, f, 25 / 100.0f);
 
+		// result.disparity = depth_float;
+		// result.planar_depth = depth_float;
 		result.depth = depth_float;
 	} else {
 		std::cerr << "Images not returned successfully" << std::endl;
