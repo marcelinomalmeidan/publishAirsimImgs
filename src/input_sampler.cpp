@@ -178,7 +178,6 @@ struct image_response input_sampler::poll_frame()
 		result.depth = cv::imdecode(response.at(2).image_data, CV_LOAD_IMAGE_GRAYSCALE);
 #endif
 		cv::Mat depth_float;
-
 		result.depth.convertTo(depth_float, CV_32FC1);
 
 		convertToPlanDepth(depth_float, result.planar_depth);
@@ -188,6 +187,15 @@ struct image_response input_sampler::poll_frame()
 	} else {
 		std::cerr << "Images not returned successfully" << std::endl;
 	}
+
+	result.pose.position.x = response.back().camera_position.x();
+	result.pose.position.y = response.back().camera_position.y();
+	result.pose.position.z = response.back().camera_position.z();
+
+	result.pose.orientation.x = response.back().camera_orientation.x();
+	result.pose.orientation.y = response.back().camera_orientation.y();
+	result.pose.orientation.z = response.back().camera_orientation.z();
+	result.pose.orientation.w = response.back().camera_orientation.w();
 
 	return result;
 }
