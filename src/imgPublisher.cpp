@@ -68,6 +68,21 @@ cv::Mat invertImg8(cv::Mat source){
   return saturatedMat - source;
 }
 
+void CameraPosePublisher(geometry_msgs::Pose CamPose){
+  static tf::TransformBroadcaster br;
+  tf::Transform transformQuad, transformCamera;
+
+  transformCamera.setOrigin(tf::Vector3(CamPose.position.x,
+                                        CamPose.position.y,
+                                        -CamPose.position.z));
+  transformCamera.setRotation(tf::Quaternion(CamPose.orientation.x,
+                                             CamPose.orientation.y,
+                                             CamPose.orientation.z, 
+                                             CamPose.orientation.w));
+
+  br.sendTransform(tf::StampedTransform(transformCamera, ros::Time::now(), "fcu", "camera"));
+}
+
 /**
  * This tutorial demonstrates simple sending of messages over the ROS system.
  */
@@ -77,7 +92,7 @@ int main(int argc, char **argv)
   //Start ROS ----------------------------------------------------------------
   ros::init(argc, argv, "airsim_imgPublisher");
   ros::NodeHandle n;
-  ros::Rate loop_rate(5);
+  ros::Rate loop_rate(50);
 
   //Subscribers --------------------------------------------------------------
   std::string odomTopic;
@@ -91,7 +106,7 @@ int main(int argc, char **argv)
   image_transport::Publisher depth8_pub = it.advertise("/Airsim/depth8", 1);
   image_transport::Publisher depth16_pub = it.advertise("/Airsim/depth", 1);
   ros::Publisher imgParamL_pub = n.advertise<sensor_msgs::CameraInfo> ("/stereo/left/camera_info", 1);
-  ros::Publisher imgParamR_pub = n.advertise<sensor_msgs::CameraInfo> ("/stereo/right/camera_info", 1);
+  ros::Publisher imgParamR_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/camera_info", 1);
     
   //ROS Messages
   sensor_msgs::ImagePtr msgImgL, msgImgR, msgDepth16, msgDepth8;
@@ -115,7 +130,7 @@ int main(int argc, char **argv)
   cv::Mat img, imgDepth8, imgDepth16, img3D; //images to store the polled images
   const string display_name = "Drone View";
   msgCameraInfo = getCameraParams();
-  double scale;
+  float scale;
 
   // *** F:DN end of communication with simulator (Airsim)
 
@@ -150,10 +165,11 @@ int main(int argc, char **argv)
     cv::waitKey(10);  
 
     // *** F:DN conversion of opencv images to ros images
+    ros::param::get("/airsim_imgPublisher/scale",scale);
     msgImgL = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imgs.left).toImageMsg();
     msgImgR = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imgs.right).toImageMsg();
-    msgDepth8 = cv_bridge::CvImage(std_msgs::Header(), "mono8", 0.25*imgs.planar_depth).toImageMsg();
-    msgDepth16 = cv_bridge::CvImage(std_msgs::Header(), "32FC1", 0.25*imgs.depth).toImageMsg();
+    msgDepth8 = cv_bridge::CvImage(std_msgs::Header(), "mono8", scale*imgs.depth).toImageMsg();
+    msgDepth16 = cv_bridge::CvImage(std_msgs::Header(), "32FC1", scale*imgs.depth).toImageMsg();
 
     //Stamp messages
     msgCameraInfo.header.stamp = ros::Time::now();
@@ -161,6 +177,9 @@ int main(int argc, char **argv)
     msgImgR->header.stamp = msgCameraInfo.header.stamp;
     msgDepth8->header.stamp =  msgCameraInfo.header.stamp;
     msgDepth16->header.stamp =  msgCameraInfo.header.stamp;
+
+    //Publish transforms into tf tree
+    CameraPosePublisher(imgs.pose);
 
     //Publish images
     ROS_INFO("New images arrived! Publishing...");

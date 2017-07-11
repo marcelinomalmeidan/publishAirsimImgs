@@ -20,6 +20,7 @@
 
     <!-- Depth baseline -->
     <param name="Tx" value="0.14"/> 
+    <param name="scale" value="0.30"/> 
 
     <!-- Topic with odometry information for the vehicle (used to create tf tree) -->
     <param name="odomTopic" value="/mavros/local_position/odom"/>
