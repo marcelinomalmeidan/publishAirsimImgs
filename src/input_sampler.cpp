@@ -183,8 +183,10 @@ struct image_response input_sampler::poll_frame()
 
 		convertToPlanDepth(depth_float, result.planar_depth);
 
-		float f = depth_float.rows / 2.0 - 1;
+		float f = depth_float.cols / 2.0;
 		convertToDisparity(result.planar_depth, result.disparity, f, 25 / 100.0f);
+
+		result.depth = depth_float;
 	} else {
 		std::cerr << "Images not returned successfully" << std::endl;
 	}

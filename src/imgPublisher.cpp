@@ -37,7 +37,7 @@ sensor_msgs::CameraInfo getCameraParams(){
     CameraParam.width = width;
 
     CameraParam.distortion_model = "plumb_bob";
-    CameraParam.D = {-0.000591, 0.000519, 0.000001, -0.000030, 0.000000};
+    CameraParam.D = {0.0, 0.0, 0.0, 0.0, 0.0};
 
     CameraParam.K = {Fx,  0.0, cx, 
                      0.0, Fy,  cy, 
@@ -77,7 +77,7 @@ int main(int argc, char **argv)
   //Start ROS ----------------------------------------------------------------
   ros::init(argc, argv, "airsim_imgPublisher");
   ros::NodeHandle n;
-  ros::Rate loop_rate(10);
+  ros::Rate loop_rate(5);
 
   //Subscribers --------------------------------------------------------------
   std::string odomTopic;
@@ -86,13 +86,15 @@ int main(int argc, char **argv)
 
   //Publishers ---------------------------------------------------------------
   image_transport::ImageTransport it(n);
-  image_transport::Publisher img_pub = it.advertise("/Airsim/image", 1);
+  image_transport::Publisher imgL_pub = it.advertise("/stereo/left/image_raw", 1);
+  image_transport::Publisher imgR_pub = it.advertise("/stereo/right/image_raw", 1);
   image_transport::Publisher depth8_pub = it.advertise("/Airsim/depth8", 1);
   image_transport::Publisher depth16_pub = it.advertise("/Airsim/depth", 1);
-  ros::Publisher imgParam_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/camera_info", 1);
+  ros::Publisher imgParamL_pub = n.advertise<sensor_msgs::CameraInfo> ("/stereo/left/camera_info", 1);
+  ros::Publisher imgParamR_pub = n.advertise<sensor_msgs::CameraInfo> ("/stereo/right/camera_info", 1);
     
   //ROS Messages
-  sensor_msgs::ImagePtr msgImg, msgDepth16, msgDepth8;
+  sensor_msgs::ImagePtr msgImgL, msgImgR, msgDepth16, msgDepth8;
   sensor_msgs::CameraInfo msgCameraInfo;
 
 	//Parameters for communicating with Airsim
@@ -127,39 +129,48 @@ int main(int argc, char **argv)
     // cv::imshow(display_name, img);
     // cv::waitKey(10); //I think we need this otherwise the image shown 
     //                   // is too fast to be observerd
+   
 
-    // *** F:DN conversion of opencv images to ros images
-    // msgImg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", img).toImageMsg();
-    // msgDepth8 = cv_bridge::CvImage(std_msgs::Header(), "mono8", invertImg8(imgDepth8)).toImageMsg();
-    // msgDepth16 = cv_bridge::CvImage(std_msgs::Header(), "16UC1", invertImg16(imgDepth16)).toImageMsg();
 
-    //Stamp messages
-    // msgCameraInfo.header.stamp = ros::Time::now();
-    // msgImg->header.stamp = msgCameraInfo.header.stamp;
-    // msgDepth8->header.stamp =  msgCameraInfo.header.stamp;
-    // msgDepth16->header.stamp =  msgCameraInfo.header.stamp;
-    
-
-    //Publish images
-    // ROS_INFO("New images arrived! Publishing...");
-    // img_pub.publish(msgImg);
-    // depth8_pub.publish(msgDepth8);
-    // depth16_pub.publish(msgDepth16);
-    // imgParam_pub.publish(msgCameraInfo);
 
     auto imgs = input_sampler__obj.poll_frame();
 
     //cv::imshow("left", imgs.left);
     //cv::imshow("right", imgs.right);
-    cv::imshow("depth", imgs.depth);
+    // cv::imshow("depth", imgs.depth);
 
-    imgs.planar_depth.convertTo(imgs.planar_depth, CV_8UC1);
-    cv::imshow("planar_depth", imgs.planar_depth);
+    // imgs.planar_depth.convertTo(imgs.planar_depth, CV_8UC1);
+    // cv::imshow("planar_depth", imgs.planar_depth);
 
-    imgs.disparity.convertTo(imgs.disparity, CV_8UC1);
-    cv::imshow("disparity", imgs.disparity);
+    // imgs.disparity.convertTo(imgs.disparity, CV_8UC1);
+    // cv::imshow("disparity", imgs.disparity);
 
-    cv::waitKey(10);
+    // imgs.planar_depth.convertTo(imgDepth16,CV_16U,255);
+
+    cv::waitKey(10);  
+
+    // *** F:DN conversion of opencv images to ros images
+    msgImgL = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imgs.left).toImageMsg();
+    msgImgR = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imgs.right).toImageMsg();
+    msgDepth8 = cv_bridge::CvImage(std_msgs::Header(), "mono8", 0.25*imgs.planar_depth).toImageMsg();
+    msgDepth16 = cv_bridge::CvImage(std_msgs::Header(), "32FC1", 0.25*imgs.depth).toImageMsg();
+
+    //Stamp messages
+    msgCameraInfo.header.stamp = ros::Time::now();
+    msgImgL->header.stamp = msgCameraInfo.header.stamp;
+    msgImgR->header.stamp = msgCameraInfo.header.stamp;
+    msgDepth8->header.stamp =  msgCameraInfo.header.stamp;
+    msgDepth16->header.stamp =  msgCameraInfo.header.stamp;
+
+    //Publish images
+    ROS_INFO("New images arrived! Publishing...");
+    imgL_pub.publish(msgImgL);
+    imgR_pub.publish(msgImgR);
+    depth8_pub.publish(msgDepth8);
+    depth16_pub.publish(msgDepth16);
+    imgParamL_pub.publish(msgCameraInfo);
+    imgParamR_pub.publish(msgCameraInfo);
+
 
     ros::spinOnce();
     
