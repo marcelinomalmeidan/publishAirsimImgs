@@ -5,23 +5,23 @@
     output="screen">
 
     <!-- IP of the Airsim computer -->
-    <param name="Airsim_ip" value="192.168.0.101"/>
+    <param name="Airsim_ip" value="192.168.1.16"/>
 
     <!-- Port of the Airsim computer (this is default, do not change!) -->
     <param name="Airsim_port" value="41451"/>
 
     <!-- RGB camera parameters (parameters when calibrated) -->
-    <param name="Fx" value="480"/>
-    <param name="Fy" value="480"/>
-    <param name="cx" value="480"/>
-    <param name="cy" value="270"/>
-    <param name="width" value="480"/>  <!-- Width when calibrated!-->
-    <param name="height" value="270"/> <!-- Height when calibrated!-->
+    <param name="Fx" value="128"/>
+    <param name="Fy" value="128"/>
+    <param name="cx" value="128"/>
+    <param name="cy" value="72"/>
+    <param name="width" value="256"/>  <!-- Width when calibrated!-->
+    <param name="height" value="144"/> <!-- Height when calibrated!-->
 
     <!-- Depth baseline -->
     <param name="Tx" value="0.14"/> 
     <param name="scale" value="0.38"/> 
-    <param name="maxDist" value="15.0"/> 
+    <param name="maxDist" value="20.0"/> 
 
     <!-- Topic with odometry information for the vehicle (used to create tf tree) -->
     <param name="odomTopic" value="/mavros/local_position/odom"/>
