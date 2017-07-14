@@ -50,7 +50,11 @@ This repo is supposed to run on Linux (only tested with Ubuntu 16.04, ROS Kineti
 
 - Change the IP configuration in ```/launch/pubImages```  to match the IP in which Airsim is running. Then:
 
-      roslaunch airsim_img_publisher pubImages.launch
+      roslaunch airsim_img_publisher pubPointCloud.launch
+
+## Create octomap
+
+      roslaunch airsim_img_publisher octomap.launch 
 
 ## RVIZ configuration file
 
