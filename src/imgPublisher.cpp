@@ -131,7 +131,7 @@ int main(int argc, char **argv)
   
   //Local variables
   input_sampler input_sampler__obj(ip_addr.c_str(), port);
-  cv::Mat img, imgDepth, imgDepthThr; //images to store the polled images
+  cv::Mat img, imgDepth, imgDepthThr, imgDepthBinaryThr; //images to store the polled images
   const string display_name = "Drone View";
   msgCameraInfo = getCameraParams();
   float scale, maxDist;
@@ -159,7 +159,9 @@ int main(int argc, char **argv)
     //Saturate depth to maximum threshold
     ros::param::get("/airsim_imgPublisher/maxDist",maxDist);
     printf("Max dist: %f", maxDist);
-    threshold(imgs.depth, imgDepthThr, maxDist,100, 4);
+    cv::threshold(imgs.depth, imgDepthThr, maxDist, 0, cv::THRESH_TOZERO_INV);
+    cv::threshold(imgs.depth, imgDepthBinaryThr, maxDist, numeric_limits<float>::infinity(), cv::THRESH_BINARY);
+    cv::add(imgDepthThr, imgDepthBinaryThr, imgDepthThr);
 
     // *** F:DN conversion of opencv images to ros images
     msgImgL = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imgs.left).toImageMsg();
