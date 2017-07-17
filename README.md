@@ -60,4 +60,4 @@ This repo is supposed to run on Linux (only tested with Ubuntu 16.04, ROS Kineti
 
 An RVIZ configuration file can be found in ```/Extras/rvizConfig.rviz```. This configuration allows a user to see the published images, as well as the tf tree.
 
-      rosrun rviz rviz -d ~/catkin_ws/src/px4_control/Extras/rvizConfig.rviz
+      rosrun rviz rviz -d ~/catkin_ws/src/publishAirsimImgs/Extras/rvizConfig.rviz
