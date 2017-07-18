@@ -17,11 +17,17 @@ geometry_msgs::Quaternion rot2quat(Eigen::Matrix3d R);
 geometry_msgs::Quaternion quatProd(geometry_msgs::Quaternion q1,
 	                               geometry_msgs::Quaternion q2);
 
+//Function to calculate the conjugate (inverse) of a quaternion
+geometry_msgs::Quaternion quatInv(geometry_msgs::Quaternion quat);
+
 //Function to get yaw from a quaternion
 double getHeadingFromQuat(geometry_msgs::Quaternion quat);
 
 //Function to convert quaternion to Roll-Pitch_yaw
 geometry_msgs::Vector3 quat2rpy(geometry_msgs::Quaternion quat);
+
+//Function to convert Roll-Pitch-yaw to quaternion
+geometry_msgs::Quaternion rpy2quat(geometry_msgs::Vector3 rpy);
 
 //Rotation matrix for a rotation about the x-axis
 Eigen::Matrix3d rotx(double theta);

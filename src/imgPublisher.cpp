@@ -63,26 +63,39 @@ void CameraPosePublisher(geometry_msgs::Pose CamPose){
                                         CamPose.position.x,
                                         -CamPose.position.z));
    Eigen::Matrix3d R;
-   // R <<  0.0,  0.0, 1.0,
-   //      -1.0,  0.0, 0.0,
-   //       0.0, -1.0, 0.0; 
+   R <<  0.0,  0.0, 1.0,
+        -1.0,  0.0, 0.0,
+         0.0, -1.0, 0.0; 
    // R <<  1.0,  0.0, 0.0,
    //       0.0,  1.0, 0.0,
    //       0.0,  0.0, 1.0; 
    // R = rotx(-M_PI/2.0);
 
          //Function to get yaw from a quaternion
-  double YawCam = getHeadingFromQuat(CamPose.orientation);
+  // double YawCam = getHeadingFromQuat(CamPose.orientation);
+  geometry_msgs::Vector3 rpy =  quat2rpy(CamPose.orientation);
+  rpy.y = -rpy.y;
+  rpy.z = -rpy.z + M_PI/2.0;
+  // geometry_msgs::Quaternion q_cam;
 
   // geometry_msgs::Quaternion q = rot2quat(R);
-  geometry_msgs::Quaternion q_Yaw = setQuat(0.0,0.0,sin(-YawCam),cos(-YawCam));
-  geometry_msgs::Quaternion q_body2cam = setQuat(-sqrt_2/2.0, 0, 0, sqrt_2/2.0);
-  geometry_msgs::Quaternion q_cam = quatProd(q_Yaw,CamPose.orientation);
+  // geometry_msgs::Quaternion q_Yaw = setQuat(0.0,0.0,sin(-rpy.z),cos(-rpy.z));
+  // geometry_msgs::Quaternion q_Roll = setQuat(sin(-rpy.x),0.0,0.0,cos(-rpy.x));
+  geometry_msgs::Quaternion q_body2cam = setQuat(0.5, -0.5, 0.5, -0.5);
+
+  // geometry_msgs::Quaternion q_body2cam = setQuat(0.0, 0, 0, 1.0);
+  // q_cam = setQuat(CamPose.orientation.x, CamPose.orientation.y, CamPose.orientation.z, CamPose.orientation.w);
+  // geometry_msgs::Quaternion q_cam = quatProd(q_Yaw,CamPose.orientation);
+  // q_cam = quatProd(q_Roll,CamPose.orientation);
+  // q_cam = quatProd(q_body2cam,q_cam);
+  // q_cam = quatProd(q_body2cam,q_cam);
+  geometry_msgs::Quaternion q_cam = rpy2quat(rpy);
   q_cam = quatProd(q_body2cam,q_cam);
   transformCamera.setRotation(tf::Quaternion(q_cam.x,
                                              q_cam.y,
                                              q_cam.z, 
                                              q_cam.w));
+  // ROS_INFO("r: %f\tp: %f\ty: %f\tw: %f", q.x, q.y, q.z, q.w);
 
   br.sendTransform(tf::StampedTransform(transformCamera, ros::Time::now(), "fcu", "camera"));
 }
@@ -101,7 +114,7 @@ int main(int argc, char **argv)
   //Subscribers --------------------------------------------------------------
   std::string odomTopic;
   ros::param::get("/airsim_imgPublisher/odomTopic", odomTopic);
-  ros::Subscriber tfSub = n.subscribe(odomTopic, 10, tfCallback); //Create tf tree
+  // ros::Subscriber tfSub = n.subscribe(odomTopic, 10, tfCallback); //Create tf tree
 
   //Publishers ---------------------------------------------------------------
   image_transport::ImageTransport it(n);
@@ -158,7 +171,6 @@ int main(int argc, char **argv)
 
     //Saturate depth to maximum threshold
     ros::param::get("/airsim_imgPublisher/maxDist",maxDist);
-    printf("Max dist: %f", maxDist);
     cv::threshold(imgs.depth, imgDepthThr, maxDist, 0, cv::THRESH_TOZERO_INV);
     cv::threshold(imgs.depth, imgDepthBinaryThr, maxDist, numeric_limits<float>::infinity(), cv::THRESH_BINARY);
     cv::add(imgDepthThr, imgDepthBinaryThr, imgDepthThr);
@@ -178,7 +190,7 @@ int main(int argc, char **argv)
     CameraPosePublisher(imgs.pose);
 
     //Publish images
-    ROS_INFO("New images arrived! Publishing...");
+    ROS_INFO("New images arrived! Publishing... Max Dist: %f", maxDist);
     imgL_pub.publish(msgImgL);
     imgR_pub.publish(msgImgR);
     depth_pub.publish(msgDepth);

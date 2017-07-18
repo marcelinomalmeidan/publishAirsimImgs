@@ -83,6 +83,15 @@ geometry_msgs::Quaternion quatProd(geometry_msgs::Quaternion q1,
 	return qout;
 }
 
+geometry_msgs::Quaternion quatInv(geometry_msgs::Quaternion quat){
+	geometry_msgs::Quaternion q;
+	q.x = -quat.x;
+	q.y = -quat.y;
+	q.z = -quat.z;
+	q.w = quat.w;
+	return q;
+}
+
 double getHeadingFromQuat(geometry_msgs::Quaternion quat){
 	geometry_msgs::Vector3 RPY = quat2rpy(quat);
 	return RPY.z;
@@ -102,6 +111,23 @@ geometry_msgs::Vector3 quat2rpy(geometry_msgs::Quaternion quat){
 
 	geometry_msgs::Vector3 rpy = SetVector3(roll, pitch, yaw);
 	return rpy;
+}
+
+geometry_msgs::Quaternion rpy2quat(geometry_msgs::Vector3 rpy){
+	double roll, pitch, yaw;
+	geometry_msgs::Quaternion q1, q2, q3, qout;
+
+	roll = rpy.x;
+	pitch = rpy.y;
+	yaw = rpy.z;
+
+	q1 = setQuat(sin(roll/2), 0, 0, cos(roll/2));
+	q2 = setQuat(0, sin(pitch/2), 0, cos(pitch/2));
+	q3 = setQuat(0, 0, sin(yaw/2), cos(yaw/2));
+
+	qout = quatProd(q1, quatProd(q2, q3));
+
+	return qout;
 }
 
 Eigen::Matrix3d rotx(double theta){
