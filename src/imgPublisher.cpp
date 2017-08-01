@@ -186,6 +186,9 @@ int main(int argc, char **argv)
     msgImgR->header.stamp = msgCameraInfo.header.stamp;
     msgDepth->header.stamp =  msgCameraInfo.header.stamp;
 
+    // Set the frame ids
+    msgDepth->header.frame_id = "camera";
+
     //Publish transforms into tf tree
     CameraPosePublisher(imgs.pose);
 
