@@ -5,7 +5,8 @@
     output="screen">
 
     <!-- IP of the Airsim computer -->
-    <param name="Airsim_ip" value="192.168.1.16"/>
+    <!-- <param name="Airsim_ip" value="192.168.1.16"/> -->
+    <param name="Airsim_ip" value="10.157.90.49"/>
 
     <!-- Port of the Airsim computer (this is default, do not change!) -->
     <param name="Airsim_port" value="41451"/>
