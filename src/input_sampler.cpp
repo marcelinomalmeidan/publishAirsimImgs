@@ -44,7 +44,7 @@ static void convertToPlanDepth(const cv::Mat& input, cv::Mat& output, float f = 
 	float center_i = width / 2.0f - 1;
 	float center_j = height / 2.0f - 1;
 
-	output = cv::Mat(height, width, CV_32FC1);
+    // output = cv::Mat(height, width, CV_32FC1);
 
 	for (int i = 0; i < width; ++i) {
 		for (int j = 0; j < height; ++j) {
@@ -86,7 +86,7 @@ struct image_response input_sampler::poll_frame()
 	std::vector<ImageRequest> request = {
 		// ImageRequest(0, ImageType::Scene),
 		ImageRequest(1, ImageType::Scene),
-	    // ImageRequest(1, ImageType::DepthMeters, true)
+	    ImageRequest(1, ImageType::DepthMeters, true)
 	};
 
     result.twist = twist();
@@ -107,7 +107,6 @@ struct image_response input_sampler::poll_frame()
 		// result.right = cv::imdecode(response.at(2).image_data_uint8, CV_LOAD_IMAGE_GRAYSCALE);
 #endif
 
-        /*
         int width = response.at(1).width;
         int height = response.at(1).height;
         std::vector<float>& floats = response.at(1).image_data_float;
@@ -119,11 +118,11 @@ struct image_response input_sampler::poll_frame()
                 result.depth.at<float>(i,j) = dist; 
             }
         }
-        */
+
         // result.depth.convertTo(result.depth, CV_32FC1);
 
         // result.planar_depth = cv::Mat(height, width, CV_32FC1);
-        // convertToPlanDepth(result.depth, result.planar_depth);
+        // convertToPlanDepth(result.depth, result.depth);
 
         // result.disparity = cv::Mat(height, width, CV_32FC1);
         // convertToDisparity(result.depth, result.disparity);

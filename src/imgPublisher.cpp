@@ -14,12 +14,21 @@
 #include <fstream>
 #include "input_sampler.h"
 #include "Callbacks/callbacks.h"
+#include <signal.h>
 
 using namespace std;
+
+void sigIntHandler(int sig)
+{
+    ros::shutdown();
+    exit(0);
+}
 
 sensor_msgs::CameraInfo getCameraParams(){
     double Tx, Fx, Fy, cx, cy, width, height;
     sensor_msgs::CameraInfo CameraParam;
+
+    // Read camera parameters from launch file
     ros::param::get("/airsim_imgPublisher/Tx",Tx);
     ros::param::get("/airsim_imgPublisher/Fx",Fx);
     ros::param::get("/airsim_imgPublisher/Fy",Fy);
@@ -78,25 +87,25 @@ void CameraPosePublisher(geometry_msgs::Pose CamPose)
   br.sendTransform(tf::StampedTransform(transformCamera, ros::Time::now(), "fcu", "camera"));
 }
 
-/**
- * This tutorial demonstrates simple sending of messages over the ROS system.
- */
 int main(int argc, char **argv)
 {
   //Start ROS ----------------------------------------------------------------
   ros::init(argc, argv, "airsim_imgPublisher");
   ros::NodeHandle n;
   ros::Rate loop_rate(20);
+  signal(SIGINT, sigIntHandler);
 
   //Publishers ---------------------------------------------------------------
   image_transport::ImageTransport it(n);
+
   // image_transport::Publisher imgL_pub = it.advertise("/Airsim/left/image_raw", 1);
   image_transport::Publisher imgR_pub = it.advertise("/Airsim/right/image_raw", 1);
-  // image_transport::Publisher depth_pub = it.advertise("/Airsim/depth", 1);
+  image_transport::Publisher depth_pub = it.advertise("/Airsim/depth", 1);
+
   // ros::Publisher imgParamL_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/left/camera_info", 1);
   ros::Publisher imgParamR_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/right/camera_info", 1);
-  // ros::Publisher imgParamDepth_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/camera_info", 1);
-    
+  ros::Publisher imgParamDepth_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/camera_info", 1);
+
   //ROS Messages
   sensor_msgs::ImagePtr msgImgL, msgImgR, msgDepth;
   sensor_msgs::CameraInfo msgCameraInfo;
@@ -115,40 +124,28 @@ int main(int argc, char **argv)
   
   //Local variables
   input_sampler input_sampler__obj(ip_addr.c_str(), port);
-  cv::Mat img, imgDepth, imgDepthThr, imgDepthBinaryThr; //images to store the polled images
-  const string display_name = "Drone View";
   msgCameraInfo = getCameraParams();
-  float scale, maxDist;
 
   // *** F:DN end of communication with simulator (Airsim)
 
   while (ros::ok())
   {
-    // ros::param::get("/airsim_imgPublisher/scale",scale);
     auto imgs = input_sampler__obj.poll_frame();
-
-    //Saturate depth to maximum threshold
-    ros::param::get("/airsim_imgPublisher/maxDist",maxDist);
-    // cv::threshold(imgs.depth, imgDepthThr, maxDist, 0, cv::THRESH_TOZERO_INV);
-    // cv::threshold(imgs.depth, imgDepthBinaryThr, maxDist, numeric_limits<float>::infinity(), cv::THRESH_BINARY);
-    // cv::add(imgDepthThr, imgDepthBinaryThr, imgDepthThr);
-
-    // cv::Mat depth_char;
-    // imgs.depth.convertTo(depth_char, CV_8UC1);
 
     // *** F:DN conversion of opencv images to ros images
     // msgImgL = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imgs.left).toImageMsg();
     msgImgR = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imgs.right).toImageMsg();
-    // msgDepth = cv_bridge::CvImage(std_msgs::Header(), "32FC1", imgDepthThr).toImageMsg();
+    msgDepth = cv_bridge::CvImage(std_msgs::Header(), "32FC1", imgs.depth).toImageMsg();
 
     //Stamp messages
     msgCameraInfo.header.stamp = ros::Time::now();
     // msgImgL->header.stamp = msgCameraInfo.header.stamp;
     msgImgR->header.stamp = msgCameraInfo.header.stamp;
-    // msgDepth->header.stamp =  msgCameraInfo.header.stamp;
+    msgDepth->header.stamp =  msgCameraInfo.header.stamp;
 
     // Set the frame ids
-    // msgDepth->header.frame_id = "camera";
+    msgDepth->header.frame_id = "camera";
+    // msgDepth->header.frame_id = "orb_slam2_rgbd";
 
     //Publish transforms into tf tree
     CameraPosePublisher(imgs.pose);
@@ -156,10 +153,10 @@ int main(int argc, char **argv)
     //Publish images
     // imgL_pub.publish(msgImgL);
     imgR_pub.publish(msgImgR);
-    // depth_pub.publish(msgDepth);
+    depth_pub.publish(msgDepth);
     // imgParamL_pub.publish(msgCameraInfo);
     imgParamR_pub.publish(msgCameraInfo);
-    // imgParamDepth_pub.publish(msgCameraInfo);
+    imgParamDepth_pub.publish(msgCameraInfo);
 
     ros::spinOnce();
     
