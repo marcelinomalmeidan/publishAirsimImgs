@@ -98,13 +98,13 @@ struct image_response input_sampler::poll_frame()
 
 	if (response.size() == request.size()) {
 #if CV_MAJOR_VERSION==3
-		// result.left = cv::imdecode(response.at(0).image_data_uint8, cv::IMREAD_COLOR);
-		result.right = cv::imdecode(response.at(0).image_data_uint8, cv::IMREAD_COLOR);
-		// result.right = cv::imdecode(response.at(2).image_data_uint8, cv::IMREAD_GRAYSCALE);
+		 result.left = cv::imdecode(response.at(0).image_data_uint8, cv::IMREAD_COLOR);
+		result.right = cv::imdecode(response.at(1).image_data_uint8, cv::IMREAD_COLOR);
+		 result.depth = cv::imdecode(response.at(2).image_data_uint8, cv::IMREAD_GRAYSCALE);
 #else
-		// result.left = cv::imdecode(response.at(0).image_data_uint8, CV_LOAD_IMAGE_COLOR);
-		result.right = cv::imdecode(response.at(0).image_data_uint8, CV_LOAD_IMAGE_COLOR);
-		// result.right = cv::imdecode(response.at(2).image_data_uint8, CV_LOAD_IMAGE_GRAYSCALE);
+		result.left = cv::imdecode(response.at(0).image_data, CV_LOAD_IMAGE_COLOR);
+		result.right = cv::imdecode(response.at(1).image_data, CV_LOAD_IMAGE_COLOR);
+		result.depth = cv::imdecode(response.at(2).image_data, CV_LOAD_IMAGE_GRAYSCALE);
 #endif
 
         int width = response.at(1).width;
