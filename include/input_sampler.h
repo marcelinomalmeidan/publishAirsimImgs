@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <string>
 #include <opencv2/opencv.hpp>
-#include "api/RpcLibClient.hpp"
+#include "vehicles/multirotor/api/MultirotorRpcLibClient.hpp"
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/Twist.h>
 
@@ -43,7 +43,7 @@ public:
 	struct image_response poll_frame();
 
 private:
-	msr::airlib::RpcLibClient * client;
+	msr::airlib::MultirotorRpcLibClient * client;
 };
 
 #endif
