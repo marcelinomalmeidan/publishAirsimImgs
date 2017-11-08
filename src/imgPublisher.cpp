@@ -5,7 +5,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <sstream>
-#include "api/RpcLibClient.hpp"
+#include "vehicles/multirotor/api/MultirotorRpcLibClient.hpp"
 #include <iostream>
 #include <chrono>
 #include <math.h>

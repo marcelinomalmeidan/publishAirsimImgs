@@ -25,14 +25,14 @@ void input_sampler::connect()
 {
 	if (client != 0)
 		delete client;
-	client = new msr::airlib::RpcLibClient();
+	client = new msr::airlib::MultirotorRpcLibClient();
 }
 
 void input_sampler::connect(const std::string& ip_addr, uint16_t port)
 {
 	if (client != 0)
 		delete client;
-	client = new msr::airlib::RpcLibClient(ip_addr, port);
+	client = new msr::airlib::MultirotorRpcLibClient(ip_addr, port);
 }
 
 
@@ -76,7 +76,7 @@ static void convertToDisparity(const cv::Mat& input, cv::Mat& output, float f = 
 
 struct image_response input_sampler::poll_frame()
 {
-	using ImageRequest = msr::airlib::DroneControllerBase::ImageRequest;
+	using ImageRequest = msr::airlib::VehicleCameraBase::ImageRequest;
 	using ImageResponse = msr::airlib::VehicleCameraBase::ImageResponse;
 	using ImageType = msr::airlib::VehicleCameraBase::ImageType;
 
@@ -86,7 +86,7 @@ struct image_response input_sampler::poll_frame()
 	std::vector<ImageRequest> request = {
 		// ImageRequest(0, ImageType::Scene),
 		ImageRequest(1, ImageType::Scene),
-	    ImageRequest(1, ImageType::DepthMeters, true)
+	    ImageRequest(1, ImageType::DepthPlanner, true)
 	};
 
     result.twist = twist();
