@@ -18,6 +18,7 @@
 #include "stereo_msgs/DisparityImage.h"
 
 using namespace std;
+string localization_method;
 
 void sigIntHandler(int sig)
 {
@@ -38,7 +39,8 @@ sensor_msgs::CameraInfo getCameraParams(){
     ros::param::get("/airsim_imgPublisher/scale_x",width);
     ros::param::get("/airsim_imgPublisher/scale_y",height);
 
-    CameraParam.header.frame_id = "camera";
+    //CameraParam.header.frame_id = "camera";
+    CameraParam.header.frame_id = localization_method;
 
     CameraParam.height = height;
     CameraParam.width = width;
@@ -85,8 +87,8 @@ void CameraPosePublisher(geometry_msgs::Pose CamPose)
                                              q_cam.z, 
                                              q_cam.w));
 
-    //br.sendTransform(tf::StampedTransform(transformCamera, ros::Time::now(), "world", "ground_truth"));
-    br.sendTransform(tf::StampedTransform(transformCamera, ros::Time::now(), "world", "camera"));
+    br.sendTransform(tf::StampedTransform(transformCamera, ros::Time::now(), "world", localization_method));
+    //br.sendTransform(tf::StampedTransform(transformCamera, ros::Time::now(), "world", "camera"));
 }
 
 int main(int argc, char **argv)
@@ -120,7 +122,6 @@ int main(int argc, char **argv)
   uint16_t port = portParam;
 
   // Parameter for localizing camera
-  string localization_method;
   if(!ros::param::get("/airsim_imgPublisher/localization_method", localization_method)){
     ROS_FATAL_STREAM("you have not set the localization method");
     return -1;
@@ -147,7 +148,10 @@ int main(int argc, char **argv)
     imgs.depth.convertTo(disparityImageMat, CV_8UC1);
     stereo_msgs::DisparityImage disparityImg;
     disparityImg.header.stamp = ros::Time::now();
-    disparityImg.header.frame_id= "camera";
+    
+    disparityImg.header.frame_id= localization_method;
+    //disparityImg.header.frame_id= "camera";
+    
     disparityImg.f = 128; //focal length, half of the image width
     disparityImg.T = .14; //baseline, half of the distance between the two cameras
     disparityImg.min_disparity = .44; // f.t/z(depth max)
@@ -174,8 +178,8 @@ int main(int argc, char **argv)
     msgDepth->header.stamp =  msgCameraInfo.header.stamp;
 
     // Set the frame ids
-    //msgDepth->header.frame_id = localization_method;
-    msgDepth->header.frame_id = "camera";
+    msgDepth->header.frame_id = localization_method;
+    //msgDepth->header.frame_id = "camera";
 
     //Publish transforms into tf tree
     CameraPosePublisher(imgs.pose);
