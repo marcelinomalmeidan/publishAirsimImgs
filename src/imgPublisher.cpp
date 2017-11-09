@@ -64,28 +64,28 @@ sensor_msgs::CameraInfo getCameraParams(){
 
 void CameraPosePublisher(geometry_msgs::Pose CamPose)
 {
-  static tf::TransformBroadcaster br;
-  tf::Transform transformQuad, transformCamera;
-  const double sqrt_2 = 1.41421356237;
+    static tf::TransformBroadcaster br;
+    tf::Transform transformQuad, transformCamera;
+    const double sqrt_2 = 1.41421356237;
 
-  transformCamera.setOrigin(tf::Vector3(CamPose.position.y,
+    transformCamera.setOrigin(tf::Vector3(CamPose.position.y,
                                         CamPose.position.x,
                                         -CamPose.position.z));
 
-  geometry_msgs::Vector3 rpy =  quat2rpy(CamPose.orientation);
-  rpy.y = -rpy.y;
-  rpy.z = -rpy.z + M_PI/2.0;
+    geometry_msgs::Vector3 rpy =  quat2rpy(CamPose.orientation);
+    rpy.y = -rpy.y;
+    rpy.z = -rpy.z + M_PI/2.0;
 
-  geometry_msgs::Quaternion q_body2cam = setQuat(0.5, -0.5, 0.5, -0.5);
+    geometry_msgs::Quaternion q_body2cam = setQuat(0.5, -0.5, 0.5, -0.5);
 
-  geometry_msgs::Quaternion q_cam = rpy2quat(rpy);
-  q_cam = quatProd(q_body2cam,q_cam);
-  transformCamera.setRotation(tf::Quaternion(q_cam.x,
+    geometry_msgs::Quaternion q_cam = rpy2quat(rpy);
+    q_cam = quatProd(q_body2cam, q_cam);
+    transformCamera.setRotation(tf::Quaternion(q_cam.x,
                                              q_cam.y,
                                              q_cam.z, 
                                              q_cam.w));
 
-  br.sendTransform(tf::StampedTransform(transformCamera, ros::Time::now(), "fcu", "camera"));
+    br.sendTransform(tf::StampedTransform(transformCamera, ros::Time::now(), "world", "ground_truth"));
 }
 
 int main(int argc, char **argv)
@@ -93,7 +93,7 @@ int main(int argc, char **argv)
   //Start ROS ----------------------------------------------------------------
   ros::init(argc, argv, "airsim_imgPublisher");
   ros::NodeHandle n;
-  ros::Rate loop_rate(20);
+  ros::Rate loop_rate(50);
   signal(SIGINT, sigIntHandler);
 
   //Publishers ---------------------------------------------------------------
@@ -117,6 +117,10 @@ int main(int argc, char **argv)
   ros::param::get("/airsim_imgPublisher/Airsim_ip",ip_addr);
   ros::param::get("/airsim_imgPublisher/Airsim_port", portParam);
   uint16_t port = portParam;
+
+  // Parameter for localizing camera
+  string localization_method;
+  ros::param::get("/airsim_imgPublisher/localization_method", localization_method);
 
   //Verbose
   ROS_INFO("Image publisher started! Connecting to:");
@@ -166,8 +170,7 @@ int main(int argc, char **argv)
     msgDepth->header.stamp =  msgCameraInfo.header.stamp;
 
     // Set the frame ids
-    msgDepth->header.frame_id = "camera";
-    // msgDepth->header.frame_id = "orb_slam2_rgbd";
+    msgDepth->header.frame_id = localization_method;
 
     //Publish transforms into tf tree
     CameraPosePublisher(imgs.pose);
