@@ -85,7 +85,8 @@ void CameraPosePublisher(geometry_msgs::Pose CamPose)
                                              q_cam.z, 
                                              q_cam.w));
 
-    br.sendTransform(tf::StampedTransform(transformCamera, ros::Time::now(), "world", "ground_truth"));
+    //br.sendTransform(tf::StampedTransform(transformCamera, ros::Time::now(), "world", "ground_truth"));
+    br.sendTransform(tf::StampedTransform(transformCamera, ros::Time::now(), "world", "camera"));
 }
 
 int main(int argc, char **argv)
@@ -120,7 +121,10 @@ int main(int argc, char **argv)
 
   // Parameter for localizing camera
   string localization_method;
-  ros::param::get("/airsim_imgPublisher/localization_method", localization_method);
+  if(!ros::param::get("/airsim_imgPublisher/localization_method", localization_method)){
+    ROS_FATAL_STREAM("you have not set the localization method");
+    return -1;
+  }
 
   //Verbose
   ROS_INFO("Image publisher started! Connecting to:");
@@ -170,7 +174,8 @@ int main(int argc, char **argv)
     msgDepth->header.stamp =  msgCameraInfo.header.stamp;
 
     // Set the frame ids
-    msgDepth->header.frame_id = localization_method;
+    //msgDepth->header.frame_id = localization_method;
+    msgDepth->header.frame_id = "camera";
 
     //Publish transforms into tf tree
     CameraPosePublisher(imgs.pose);
