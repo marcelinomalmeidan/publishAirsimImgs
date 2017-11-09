@@ -85,8 +85,8 @@ struct image_response input_sampler::poll_frame()
 
 	std::vector<ImageRequest> request = {
 		// ImageRequest(0, ImageType::Scene),
-		ImageRequest(1, ImageType::Scene),
-	    ImageRequest(1, ImageType::DepthPlanner, true)
+		ImageRequest(0, ImageType::Scene),
+	    ImageRequest(0, ImageType::DepthPlanner, true)
 	};
 
     result.twist = twist();

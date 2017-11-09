@@ -15,6 +15,7 @@
 #include "input_sampler.h"
 #include "Callbacks/callbacks.h"
 #include <signal.h>
+#include "stereo_msgs/DisparityImage.h"
 
 using namespace std;
 
@@ -102,10 +103,10 @@ int main(int argc, char **argv)
   image_transport::Publisher imgR_pub = it.advertise("/Airsim/right/image_raw", 1);
   image_transport::Publisher depth_pub = it.advertise("/Airsim/depth", 1);
 
-  // ros::Publisher imgParamL_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/left/camera_info", 1);
+   ros::Publisher imgParamL_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/left/camera_info", 1);
   ros::Publisher imgParamR_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/right/camera_info", 1);
   ros::Publisher imgParamDepth_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/camera_info", 1);
-
+  ros::Publisher disparity_pub = n.advertise<stereo_msgs::DisparityImage> ("/Airsim/disparity", 1);
   //ROS Messages
   sensor_msgs::ImagePtr msgImgL, msgImgR, msgDepth;
   sensor_msgs::CameraInfo msgCameraInfo;
@@ -132,6 +133,27 @@ int main(int argc, char **argv)
   {
     auto imgs = input_sampler__obj.poll_frame();
 
+
+    
+    cv::Mat disparityImageMat;
+    imgs.depth.convertTo(disparityImageMat, CV_8UC1);
+    stereo_msgs::DisparityImage disparityImg;
+    disparityImg.header.stamp = ros::Time::now();
+    disparityImg.header.frame_id= "camera";
+    disparityImg.f = 128; //focal length, half of the image width
+    disparityImg.T = .14; //baseline, half of the distance between the two cameras
+    disparityImg.min_disparity = .44; // f.t/z(depth max)
+    disparityImg.max_disparity = 179; // f.t/z(depth min)
+    disparityImg.delta_d = .018; //possibly change
+    disparityImg.image = *(cv_bridge::CvImage(std_msgs::Header(), "8UC1", disparityImageMat).toImageMsg());
+    disparityImg.valid_window.x_offset = 0;
+    disparityImg.valid_window.y_offset = 0;
+    disparityImg.valid_window.height =  144;
+    disparityImg.valid_window.width =  256;
+    disparityImg.valid_window.do_rectify =  false; //possibly change
+    
+
+
     // *** F:DN conversion of opencv images to ros images
     // msgImgL = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imgs.left).toImageMsg();
     msgImgR = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imgs.right).toImageMsg();
@@ -154,10 +176,11 @@ int main(int argc, char **argv)
     // imgL_pub.publish(msgImgL);
     imgR_pub.publish(msgImgR);
     depth_pub.publish(msgDepth);
-    // imgParamL_pub.publish(msgCameraInfo);
+    imgParamL_pub.publish(msgCameraInfo);
     imgParamR_pub.publish(msgCameraInfo);
     imgParamDepth_pub.publish(msgCameraInfo);
-
+    disparity_pub.publish(disparityImg);
+    
     ros::spinOnce();
     
     loop_rate.sleep();
