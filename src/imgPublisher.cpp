@@ -19,7 +19,7 @@
 
 using namespace std;
 string localization_method;
-
+msr::airlib::MultirotorRpcLibClient * client;
 void sigIntHandler(int sig)
 {
     ros::shutdown();
@@ -68,6 +68,11 @@ void CameraPosePublisher(geometry_msgs::Pose CamPose)
 {
     static tf::TransformBroadcaster br;
     tf::Transform transformQuad, transformCamera;
+   
+     static tf::TransformBroadcaster br_gps;
+     tf::Transform transformCamera_gps;
+    
+
     const double sqrt_2 = 1.41421356237;
 
     transformCamera.setOrigin(tf::Vector3(CamPose.position.y,
@@ -87,18 +92,69 @@ void CameraPosePublisher(geometry_msgs::Pose CamPose)
                                              q_cam.z, 
                                              q_cam.w));
 
-    br.sendTransform(tf::StampedTransform(transformCamera, ros::Time::now(), "world", localization_method));
+    
+    br.sendTransform(tf::StampedTransform(transformCamera, ros::Time::now(), "world", "ground_truth"));
+    
+     
+    if(localization_method == "gps") {
+        auto p = client->getPosition();
+	    auto orien = client->getOrientation();
+        transformCamera_gps.setOrigin(tf::Vector3(p.y(),
+                    p.x(),
+                    -p.z()));
+        
+        tf::Quaternion rotation(orien.x(), orien.y(), orien.z(), orien.w());
+        
+        //tf::Quaternion rotation = transform.getRotation();
+        double roll, pitch, yaw;
+        tf::Matrix3x3(rotation).getRPY(roll, pitch, yaw);
+        rotation.setRPY(roll-M_PI/2, pitch, -yaw);
+        transformCamera_gps.setRotation(rotation);
+
+        /* 
+        geometry_msgs::Quaternion q;
+        q.x = orien.x();
+        q.y = orien.y();
+        q.z = orien.z();
+        q.w = orien.w();
+
+        
+        geometry_msgs::Vector3 rpy_gps =  quat2rpy(q);
+        rpy_gps.y = -rpy_gps.y;
+        rpy_gps.z = -rpy_gps.z + M_PI/2.0;
+
+        geometry_msgs::Quaternion q_body2cam_gps = setQuat(0.5, -0.5, 0.5, -0.5);
+
+        geometry_msgs::Quaternion q_cam_gps = rpy2quat(rpy_gps);
+        q_cam_gps = quatProd(q_body2cam_gps, q_cam_gps);
+        transformCamera.setRotation(tf::Quaternion(q_cam_gps.x,
+                    q_cam_gps.y,
+                    q_cam_gps.z, 
+                    q_cam_gps.w));
+
+                    */
+       /* 
+        transformCamera_gps.setRotation(tf::Quaternion(q.x(),
+                    q.y(),
+                    q.z(), ////
+                    q.w()));
+    */
+        br_gps.sendTransform(tf::StampedTransform(transformCamera_gps, ros::Time::now(), "world", "gps"));
+    }
     //br.sendTransform(tf::StampedTransform(transformCamera, ros::Time::now(), "world", "camera"));
 }
 
 int main(int argc, char **argv)
 {
-  //Start ROS ----------------------------------------------------------------
+  
+    
+    //Start ROS ----------------------------------------------------------------
   ros::init(argc, argv, "airsim_imgPublisher");
   ros::NodeHandle n;
   ros::Rate loop_rate(50);
   signal(SIGINT, sigIntHandler);
 
+    
   //Publishers ---------------------------------------------------------------
   image_transport::ImageTransport it(n);
 
@@ -126,6 +182,11 @@ int main(int argc, char **argv)
     ROS_FATAL_STREAM("you have not set the localization method");
     return -1;
   }
+
+   //this connects us to the drone 
+  client = new msr::airlib::MultirotorRpcLibClient(ip_addr, port);
+  //client->enableApiControl(false);
+
 
   //Verbose
   ROS_INFO("Image publisher started! Connecting to:");
