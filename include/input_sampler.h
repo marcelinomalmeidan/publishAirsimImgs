@@ -20,6 +20,7 @@ struct image_response {
 	cv::Mat disparity;
 	
 	geometry_msgs::Pose pose;
+	geometry_msgs::Pose pose_gt; //ground truth
     geometry_msgs::Twist twist;	
 };
 

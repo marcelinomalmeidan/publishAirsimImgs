@@ -139,17 +139,19 @@ struct image_response input_sampler::poll_frame()
 		std::cerr << "Images not returned successfully" << std::endl;
 	}
 
-    if (localization_method == "ground_truth") { 	
-        static auto initial_pos = response.back().camera_position;
-        result.pose.position.x = response.back().camera_position.x() - initial_pos.x();
-        result.pose.position.y = response.back().camera_position.y() - initial_pos.y();
-        result.pose.position.z = response.back().camera_position.z() - initial_pos.z();
+        
+    //ground truth values
+    static auto initial_pos_gt= response.back().camera_position;
+    result.pose_gt.position.x = response.back().camera_position.x() - initial_pos_gt.x();
+    result.pose_gt.position.y = response.back().camera_position.y() - initial_pos_gt.y();
+    result.pose_gt.position.z = response.back().camera_position.z() - initial_pos_gt.z();
 
-        result.pose.orientation.x = response.back().camera_orientation.x();
-        result.pose.orientation.y = response.back().camera_orientation.y();
-        result.pose.orientation.z = response.back().camera_orientation.z();
-        result.pose.orientation.w = response.back().camera_orientation.w();
-    } else if(localization_method == "gps") {
+    result.pose_gt.orientation.x = response.back().camera_orientation.x();
+    result.pose_gt.orientation.y = response.back().camera_orientation.y();
+    result.pose_gt.orientation.z = response.back().camera_orientation.z();
+    result.pose_gt.orientation.w = response.back().camera_orientation.w();
+     
+    if(this->localization_method == "gps") {
         static auto initial_pos_gps = client->getPosition();
         auto p = client->getPosition();
 	    auto q = client->getOrientation();
@@ -161,7 +163,6 @@ struct image_response input_sampler::poll_frame()
         result.pose.orientation.y = q.y();
         result.pose.orientation.z = q.z();
         result.pose.orientation.w = q.w();
-    
     }
 
 	return result;

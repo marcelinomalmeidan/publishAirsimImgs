@@ -64,17 +64,11 @@ sensor_msgs::CameraInfo getCameraParams(){
     return CameraParam;
 }
 
-void CameraPosePublisher(geometry_msgs::Pose CamPose)
+void CameraPosePublisher(geometry_msgs::Pose CamPose, geometry_msgs::Pose CamPose_gt)
 {
     static tf::TransformBroadcaster br;
     tf::Transform transformQuad, transformCamera;
-   
-     //static tf::TransformBroadcaster br_gps;
-     //tf::Transform transformCamera_gps;
-    
-
     const double sqrt_2 = 1.41421356237;
-
     transformCamera.setOrigin(tf::Vector3(CamPose.position.y,
                                         CamPose.position.x,
                                         -CamPose.position.z));
@@ -92,31 +86,31 @@ void CameraPosePublisher(geometry_msgs::Pose CamPose)
                                              q_cam.z, 
                                              q_cam.w));
 
+    if (localization_method != "ground_truth" && localization_method !="orb_slam2_rgbd"){ //note that slam itself posts this transform
+        br.sendTransform(tf::StampedTransform(transformCamera, ros::Time::now(), "world", localization_method));
+    }  
     
-    br.sendTransform(tf::StampedTransform(transformCamera, ros::Time::now(), "world", localization_method));
-    /*
-     
-    if(localization_method == "gps") {
-        
-        //auto p = client->getPosition();
-	    //auto orien = client->getOrientation();
-        transformCamera_gps.setOrigin(tf::Vector3(p.y(),
-                    p.x(),
-                    -p.z()));
-        
-        tf::Quaternion rotation(orien.x(), orien.y(), orien.z(), orien.w());
-        
-        //tf::Quaternion rotation = transform.getRotation();
-        double roll, pitch, yaw;
-        tf::Matrix3x3(rotation).getRPY(roll, pitch, yaw);
-        rotation.setRPY(roll-M_PI/2, pitch, -yaw);
-        transformCamera_gps.setRotation(rotation);
+    
+    //ground truth values
+    static tf::TransformBroadcaster br_gt;
+    tf::Transform transformQuad_gt, transformCamera_gt;
+    transformCamera_gt.setOrigin(tf::Vector3(CamPose_gt.position.y,
+                                        CamPose_gt.position.x,
+                                        -CamPose_gt.position.z));
 
-        br_gps.sendTransform(tf::StampedTransform(transformCamera_gps, ros::Time::now(), "world", "gps"));
-    }
-    */
-    
-    //br.sendTransform(tf::StampedTransform(transformCamera, ros::Time::now(), "world", "camera"));
+    geometry_msgs::Vector3 rpy_gt =  quat2rpy(CamPose_gt.orientation);
+    rpy_gt.y = -rpy_gt.y;
+    rpy_gt.z = -rpy_gt.z + M_PI/2.0;
+
+    geometry_msgs::Quaternion q_body2cam_gt = setQuat(0.5, -0.5, 0.5, -0.5);
+
+    geometry_msgs::Quaternion q_cam_gt = rpy2quat(rpy_gt);
+    q_cam_gt = quatProd(q_body2cam_gt, q_cam_gt);
+    transformCamera_gt.setRotation(tf::Quaternion(q_cam_gt.x,
+                                             q_cam_gt.y,
+                                             q_cam_gt.z, 
+                                             q_cam_gt.w));
+    br_gt.sendTransform(tf::StampedTransform(transformCamera_gt, ros::Time::now(), "world", "ground_truth"));
 }
 
 int main(int argc, char **argv)
@@ -218,7 +212,7 @@ int main(int argc, char **argv)
     //msgDepth->header.frame_id = "camera";
 
     //Publish transforms into tf tree
-    CameraPosePublisher(imgs.pose);
+    CameraPosePublisher(imgs.pose, imgs.pose_gt);
 
     //Publish images
     // imgL_pub.publish(msgImgL);
