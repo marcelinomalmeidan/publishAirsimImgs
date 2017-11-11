@@ -69,8 +69,8 @@ void CameraPosePublisher(geometry_msgs::Pose CamPose)
     static tf::TransformBroadcaster br;
     tf::Transform transformQuad, transformCamera;
    
-     static tf::TransformBroadcaster br_gps;
-     tf::Transform transformCamera_gps;
+     //static tf::TransformBroadcaster br_gps;
+     //tf::Transform transformCamera_gps;
     
 
     const double sqrt_2 = 1.41421356237;
@@ -93,12 +93,13 @@ void CameraPosePublisher(geometry_msgs::Pose CamPose)
                                              q_cam.w));
 
     
-    br.sendTransform(tf::StampedTransform(transformCamera, ros::Time::now(), "world", "ground_truth"));
-    
+    br.sendTransform(tf::StampedTransform(transformCamera, ros::Time::now(), "world", localization_method));
+    /*
      
     if(localization_method == "gps") {
-        auto p = client->getPosition();
-	    auto orien = client->getOrientation();
+        
+        //auto p = client->getPosition();
+	    //auto orien = client->getOrientation();
         transformCamera_gps.setOrigin(tf::Vector3(p.y(),
                     p.x(),
                     -p.z()));
@@ -111,36 +112,10 @@ void CameraPosePublisher(geometry_msgs::Pose CamPose)
         rotation.setRPY(roll-M_PI/2, pitch, -yaw);
         transformCamera_gps.setRotation(rotation);
 
-        /* 
-        geometry_msgs::Quaternion q;
-        q.x = orien.x();
-        q.y = orien.y();
-        q.z = orien.z();
-        q.w = orien.w();
-
-        
-        geometry_msgs::Vector3 rpy_gps =  quat2rpy(q);
-        rpy_gps.y = -rpy_gps.y;
-        rpy_gps.z = -rpy_gps.z + M_PI/2.0;
-
-        geometry_msgs::Quaternion q_body2cam_gps = setQuat(0.5, -0.5, 0.5, -0.5);
-
-        geometry_msgs::Quaternion q_cam_gps = rpy2quat(rpy_gps);
-        q_cam_gps = quatProd(q_body2cam_gps, q_cam_gps);
-        transformCamera.setRotation(tf::Quaternion(q_cam_gps.x,
-                    q_cam_gps.y,
-                    q_cam_gps.z, 
-                    q_cam_gps.w));
-
-                    */
-       /* 
-        transformCamera_gps.setRotation(tf::Quaternion(q.x(),
-                    q.y(),
-                    q.z(), ////
-                    q.w()));
-    */
         br_gps.sendTransform(tf::StampedTransform(transformCamera_gps, ros::Time::now(), "world", "gps"));
     }
+    */
+    
     //br.sendTransform(tf::StampedTransform(transformCamera, ros::Time::now(), "world", "camera"));
 }
 
@@ -194,7 +169,7 @@ int main(int argc, char **argv)
   ROS_INFO("Port: %d", port);
   
   //Local variables
-  input_sampler input_sampler__obj(ip_addr.c_str(), port);
+  input_sampler input_sampler__obj(ip_addr.c_str(), port, localization_method);
   msgCameraInfo = getCameraParams();
 
   // *** F:DN end of communication with simulator (Airsim)

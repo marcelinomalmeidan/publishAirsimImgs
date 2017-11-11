@@ -27,7 +27,7 @@ class input_sampler {
 public:
 	input_sampler();
 	input_sampler(const std::string& ip_addr, uint16_t port);
-
+	input_sampler(const std::string& ip_addr, uint16_t port, std::string localization_method);
 	~input_sampler();
 
 	// *** F:DN Control functions
@@ -43,7 +43,8 @@ public:
 	struct image_response poll_frame();
 
 private:
-	msr::airlib::MultirotorRpcLibClient * client;
+ std::string localization_method;	
+    msr::airlib::MultirotorRpcLibClient * client;
 };
 
 #endif
