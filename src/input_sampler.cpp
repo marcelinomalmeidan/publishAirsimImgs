@@ -5,15 +5,24 @@
 #include <cstring>
 #include "common/Common.hpp"
 
-input_sampler::input_sampler() : client(0)
+input_sampler::input_sampler() : client(0), localization_method("ground_truth")
 {
 	connect();
 }
 
-input_sampler::input_sampler(const std::string& ip_addr, uint16_t port) : client(0)
+input_sampler::input_sampler(const std::string& ip_addr, uint16_t port) : client(0), localization_method("ground_truth")
 {
 	connect(ip_addr, port);
 }
+
+
+input_sampler::input_sampler(const std::string& ip_addr, uint16_t port, std::string localization_method) : client(0)
+{
+	connect(ip_addr, port);
+    this->localization_method = localization_method;
+}
+
+
 
 input_sampler::~input_sampler()
 {
@@ -132,16 +141,31 @@ struct image_response input_sampler::poll_frame()
 		std::cerr << "Images not returned successfully" << std::endl;
 	}
 
-    static auto initial_pos = response.back().camera_position;
+        
+    //ground truth values
+    static auto initial_pos_gt= response.back().camera_position;
+    result.pose_gt.position.x = response.back().camera_position.x() - initial_pos_gt.x();
+    result.pose_gt.position.y = response.back().camera_position.y() - initial_pos_gt.y();
+    result.pose_gt.position.z = response.back().camera_position.z() - initial_pos_gt.z();
 
-	result.pose.position.x = response.back().camera_position.x() - initial_pos.x();
-	result.pose.position.y = response.back().camera_position.y() - initial_pos.y();
-	result.pose.position.z = response.back().camera_position.z() - initial_pos.z();
+    result.pose_gt.orientation.x = response.back().camera_orientation.x();
+    result.pose_gt.orientation.y = response.back().camera_orientation.y();
+    result.pose_gt.orientation.z = response.back().camera_orientation.z();
+    result.pose_gt.orientation.w = response.back().camera_orientation.w();
+     
+    if(this->localization_method == "gps") {
+        static auto initial_pos_gps = client->getPosition();
+        auto p = client->getPosition();
+	    auto q = client->getOrientation();
+        result.pose.position.x = p.x() - initial_pos_gps.x();
+        result.pose.position.y = p.y() - initial_pos_gps.y();
+        result.pose.position.z = p.z() - initial_pos_gps.z();
 
-	result.pose.orientation.x = response.back().camera_orientation.x();
-	result.pose.orientation.y = response.back().camera_orientation.y();
-	result.pose.orientation.z = response.back().camera_orientation.z();
-	result.pose.orientation.w = response.back().camera_orientation.w();
+        result.pose.orientation.x = q.x();
+        result.pose.orientation.y = q.y();
+        result.pose.orientation.z = q.z();
+        result.pose.orientation.w = q.w();
+    }
 
 	return result;
 }

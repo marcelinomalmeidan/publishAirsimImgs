@@ -13,9 +13,11 @@
 #include "input_sampler.h"
 #include "Callbacks/callbacks.h"
 #include <signal.h>
+#include "stereo_msgs/DisparityImage.h"
 
 using namespace std;
-
+string localization_method;
+msr::airlib::MultirotorRpcLibClient * client;
 void sigIntHandler(int sig)
 {
     ros::shutdown();
@@ -35,7 +37,8 @@ sensor_msgs::CameraInfo getCameraParams(){
     ros::param::get("/airsim_imgPublisher/scale_x",width);
     ros::param::get("/airsim_imgPublisher/scale_y",height);
 
-    CameraParam.header.frame_id = "camera";
+    //CameraParam.header.frame_id = "camera";
+    CameraParam.header.frame_id = localization_method;
 
     CameraParam.height = height;
     CameraParam.width = width;
@@ -59,12 +62,11 @@ sensor_msgs::CameraInfo getCameraParams(){
     return CameraParam;
 }
 
-void CameraPosePublisher(geometry_msgs::Pose CamPose)
+void CameraPosePublisher(geometry_msgs::Pose CamPose, geometry_msgs::Pose CamPose_gt)
 {
     static tf::TransformBroadcaster br;
     tf::Transform transformQuad, transformCamera;
     const double sqrt_2 = 1.41421356237;
-
     transformCamera.setOrigin(tf::Vector3(CamPose.position.y,
                                         CamPose.position.x,
                                         -CamPose.position.z));
@@ -82,17 +84,44 @@ void CameraPosePublisher(geometry_msgs::Pose CamPose)
                                              q_cam.z, 
                                              q_cam.w));
 
-    br.sendTransform(tf::StampedTransform(transformCamera, ros::Time::now(), "world", "ground_truth"));
+    if (localization_method != "ground_truth" && localization_method !="orb_slam2_rgbd"){ //note that slam itself posts this transform
+        br.sendTransform(tf::StampedTransform(transformCamera, ros::Time::now(), "world", localization_method));
+    }  
+    
+    
+    //ground truth values
+    static tf::TransformBroadcaster br_gt;
+    tf::Transform transformQuad_gt, transformCamera_gt;
+    transformCamera_gt.setOrigin(tf::Vector3(CamPose_gt.position.y,
+                                        CamPose_gt.position.x,
+                                        -CamPose_gt.position.z));
+
+    geometry_msgs::Vector3 rpy_gt =  quat2rpy(CamPose_gt.orientation);
+    rpy_gt.y = -rpy_gt.y;
+    rpy_gt.z = -rpy_gt.z + M_PI/2.0;
+
+    geometry_msgs::Quaternion q_body2cam_gt = setQuat(0.5, -0.5, 0.5, -0.5);
+
+    geometry_msgs::Quaternion q_cam_gt = rpy2quat(rpy_gt);
+    q_cam_gt = quatProd(q_body2cam_gt, q_cam_gt);
+    transformCamera_gt.setRotation(tf::Quaternion(q_cam_gt.x,
+                                             q_cam_gt.y,
+                                             q_cam_gt.z, 
+                                             q_cam_gt.w));
+    br_gt.sendTransform(tf::StampedTransform(transformCamera_gt, ros::Time::now(), "world", "ground_truth"));
 }
 
 int main(int argc, char **argv)
 {
-  //Start ROS ----------------------------------------------------------------
+  
+    
+    //Start ROS ----------------------------------------------------------------
   ros::init(argc, argv, "airsim_imgPublisher");
   ros::NodeHandle n;
   ros::Rate loop_rate(60);
   signal(SIGINT, sigIntHandler);
 
+    
   //Publishers ---------------------------------------------------------------
   image_transport::ImageTransport it(n);
 
@@ -100,10 +129,10 @@ int main(int argc, char **argv)
   image_transport::Publisher imgR_pub = it.advertise("/Airsim/right/image_raw", 1);
   image_transport::Publisher depth_pub = it.advertise("/Airsim/depth", 1);
 
-  // ros::Publisher imgParamL_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/left/camera_info", 1);
+   ros::Publisher imgParamL_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/left/camera_info", 1);
   ros::Publisher imgParamR_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/right/camera_info", 1);
   ros::Publisher imgParamDepth_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/camera_info", 1);
-
+  ros::Publisher disparity_pub = n.advertise<stereo_msgs::DisparityImage> ("/Airsim/disparity", 1);
   //ROS Messages
   sensor_msgs::ImagePtr msgImgL, msgImgR, msgDepth;
   sensor_msgs::CameraInfo msgCameraInfo;
@@ -116,8 +145,15 @@ int main(int argc, char **argv)
   uint16_t port = portParam;
 
   // Parameter for localizing camera
-  string localization_method;
-  ros::param::get("/airsim_imgPublisher/localization_method", localization_method);
+  if(!ros::param::get("/airsim_imgPublisher/localization_method", localization_method)){
+    ROS_FATAL_STREAM("you have not set the localization method");
+    return -1;
+  }
+
+   //this connects us to the drone 
+  client = new msr::airlib::MultirotorRpcLibClient(ip_addr, port);
+  //client->enableApiControl(false);
+
 
   //Verbose
   ROS_INFO("Image publisher started! Connecting to:");
@@ -125,7 +161,7 @@ int main(int argc, char **argv)
   ROS_INFO("Port: %d", port);
   
   //Local variables
-  input_sampler input_sampler__obj(ip_addr.c_str(), port);
+  input_sampler input_sampler__obj(ip_addr.c_str(), port, localization_method);
   msgCameraInfo = getCameraParams();
 
   // *** F:DN end of communication with simulator (Airsim)
@@ -133,6 +169,30 @@ int main(int argc, char **argv)
   while (ros::ok())
   {
     auto imgs = input_sampler__obj.poll_frame();
+
+
+    
+    cv::Mat disparityImageMat;
+    imgs.depth.convertTo(disparityImageMat, CV_8UC1);
+    stereo_msgs::DisparityImage disparityImg;
+    disparityImg.header.stamp = ros::Time::now();
+    
+    disparityImg.header.frame_id= localization_method;
+    //disparityImg.header.frame_id= "camera";
+    
+    disparityImg.f = 128; //focal length, half of the image width
+    disparityImg.T = .14; //baseline, half of the distance between the two cameras
+    disparityImg.min_disparity = .44; // f.t/z(depth max)
+    disparityImg.max_disparity = 179; // f.t/z(depth min)
+    disparityImg.delta_d = .018; //possibly change
+    disparityImg.image = *(cv_bridge::CvImage(std_msgs::Header(), "8UC1", disparityImageMat).toImageMsg());
+    disparityImg.valid_window.x_offset = 0;
+    disparityImg.valid_window.y_offset = 0;
+    disparityImg.valid_window.height =  144;
+    disparityImg.valid_window.width =  256;
+    disparityImg.valid_window.do_rectify =  false; //possibly change
+    
+
 
     // *** F:DN conversion of opencv images to ros images
     // msgImgL = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imgs.left).toImageMsg();
@@ -147,18 +207,20 @@ int main(int argc, char **argv)
 
     // Set the frame ids
     msgDepth->header.frame_id = localization_method;
+    //msgDepth->header.frame_id = "camera";
 
     //Publish transforms into tf tree
-    CameraPosePublisher(imgs.pose);
+    CameraPosePublisher(imgs.pose, imgs.pose_gt);
 
     //Publish images
     // imgL_pub.publish(msgImgL);
     imgR_pub.publish(msgImgR);
     depth_pub.publish(msgDepth);
-    // imgParamL_pub.publish(msgCameraInfo);
+    imgParamL_pub.publish(msgCameraInfo);
     imgParamR_pub.publish(msgCameraInfo);
     imgParamDepth_pub.publish(msgCameraInfo);
-
+    disparity_pub.publish(disparityImg);
+    
     ros::spinOnce();
     
     loop_rate.sleep();
