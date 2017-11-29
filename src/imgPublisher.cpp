@@ -1,4 +1,3 @@
-// #include "ros/ros.h"
 #include "std_msgs/String.h"
 #include <image_transport/image_transport.h>
 #include <nav_msgs/Odometry.h>
@@ -7,7 +6,6 @@
 #include <sstream>
 #include "vehicles/multirotor/api/MultirotorRpcLibClient.hpp"
 #include <iostream>
-#include <chrono>
 #include <math.h>
 #include <iterator>
 #include "common/Common.hpp"
@@ -92,7 +90,7 @@ int main(int argc, char **argv)
   //Start ROS ----------------------------------------------------------------
   ros::init(argc, argv, "airsim_imgPublisher");
   ros::NodeHandle n;
-  ros::Rate loop_rate(50);
+  ros::Rate loop_rate(60);
   signal(SIGINT, sigIntHandler);
 
   //Publishers ---------------------------------------------------------------

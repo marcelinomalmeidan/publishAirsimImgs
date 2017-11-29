@@ -86,7 +86,7 @@ struct image_response input_sampler::poll_frame()
 	std::vector<ImageRequest> request = {
 		// ImageRequest(0, ImageType::Scene),
 		ImageRequest(1, ImageType::Scene),
-	    ImageRequest(1, ImageType::DepthPlanner, true)
+	    ImageRequest(1, ImageType::DepthPlanner)
 	};
 
     result.twist = twist();
@@ -100,13 +100,14 @@ struct image_response input_sampler::poll_frame()
 #if CV_MAJOR_VERSION==3
 		// result.left = cv::imdecode(response.at(0).image_data_uint8, cv::IMREAD_COLOR);
 		result.right = cv::imdecode(response.at(0).image_data_uint8, cv::IMREAD_COLOR);
-		// result.depth = cv::imdecode(response.at(1).image_data_uint8, cv::IMREAD_GRAYSCALE);
+		result.depth = cv::imdecode(response.at(1).image_data_uint8, cv::IMREAD_GRAYSCALE);
 #else
 		// result.left = cv::imdecode(response.at(0).image_data_uint8, CV_LOAD_IMAGE_COLOR);
 		result.right = cv::imdecode(response.at(0).image_data_uint8, CV_LOAD_IMAGE_COLOR);
-		// result.depth = cv::imdecode(response.at(1).image_data_uint8, CV_LOAD_IMAGE_GRAYSCALE);
+		result.depth = cv::imdecode(response.at(1).image_data_uint8, CV_LOAD_IMAGE_GRAYSCALE);
 #endif
 
+        /*
         int width = response.at(1).width;
         int height = response.at(1).height;
         std::vector<float>& floats = response.at(1).image_data_float;
@@ -118,8 +119,9 @@ struct image_response input_sampler::poll_frame()
                 result.depth.at<float>(i,j) = dist; 
             }
         }
+        */
 
-        // result.depth.convertTo(result.depth, CV_32FC1);
+        result.depth.convertTo(result.depth, CV_32FC1, 1.0/2.56);
 
         // result.planar_depth = cv::Mat(height, width, CV_32FC1);
         // convertToPlanDepth(result.depth, result.depth);
