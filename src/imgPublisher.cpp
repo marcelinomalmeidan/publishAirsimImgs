@@ -14,15 +14,23 @@
 #include "Callbacks/callbacks.h"
 #include <signal.h>
 #include "stereo_msgs/DisparityImage.h"
+#include <thread>
+#include <mutex>
 
 using namespace std;
 string localization_method;
 msr::airlib::MultirotorRpcLibClient * client;
+extern std::mutex client_mutex;
 void sigIntHandler(int sig)
 {
+   // my_thread.join(); 
+    client_mutex.lock(); 
     ros::shutdown();
     exit(0);
+    client_mutex.unlock();
 }
+
+
 
 sensor_msgs::CameraInfo getCameraParams(){
     double Tx, Fx, Fy, cx, cy, width, height;
@@ -111,15 +119,20 @@ void CameraPosePublisher(geometry_msgs::Pose CamPose, geometry_msgs::Pose CamPos
     br_gt.sendTransform(tf::StampedTransform(transformCamera_gt, ros::Time::now(), "world", "ground_truth"));
 }
 
+void do_nothing(){
+    return;
+}
+//std::thread poll_frame_thread(do_nothing);
+
+
 int main(int argc, char **argv)
 {
   
     
-    //Start ROS ----------------------------------------------------------------
+  //Start ROS ----------------------------------------------------------------
   ros::init(argc, argv, "airsim_imgPublisher");
   ros::NodeHandle n;
   ros::Rate loop_rate(60);
-  signal(SIGINT, sigIntHandler);
 
     
   //Publishers ---------------------------------------------------------------
@@ -161,15 +174,24 @@ int main(int argc, char **argv)
   ROS_INFO("Port: %d", port);
   
   //Local variables
-  input_sampler input_sampler__obj(ip_addr.c_str(), port, localization_method);
-  msgCameraInfo = getCameraParams();
+  input_sampler input_sample__obj(ip_addr.c_str(), port, localization_method);
+   msgCameraInfo = getCameraParams();
+
+  
+   
+ 
+  std::thread poll_frame_thread(&input_sampler::poll_frame, &input_sample__obj);
+  signal(SIGINT, sigIntHandler);
 
   // *** F:DN end of communication with simulator (Airsim)
-
   while (ros::ok())
   {
-    auto imgs = input_sampler__obj.poll_frame();
-
+    
+    auto imgs = input_sample__obj.image_decode();
+    //auto imgs = input_sample__obj.poll_frame_and_decode();
+    if (!imgs.valid_data) {
+        continue;
+    }
 
     
     cv::Mat disparityImageMat;
@@ -223,9 +245,9 @@ int main(int argc, char **argv)
     
     ros::spinOnce();
     
-    loop_rate.sleep();
+    //loop_rate.sleep();
   }
-
+  poll_frame_thread.join();
   return 0;
 }
 

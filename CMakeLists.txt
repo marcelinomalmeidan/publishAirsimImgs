@@ -49,10 +49,12 @@ find_package(catkin REQUIRED COMPONENTS
 find_package( PCL REQUIRED )
 
 ## Generate added messages and services with any dependencies listed here
- generate_messages(
+generate_messages(
    DEPENDENCIES
    std_msgs
 )
+
+
 
 ####################
 

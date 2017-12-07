@@ -7,6 +7,11 @@
 #include "vehicles/multirotor/api/MultirotorRpcLibClient.hpp"
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/Twist.h>
+using ImageReq = msr::airlib::VehicleCameraBase::ImageRequest;
+using ImageRes = msr::airlib::VehicleCameraBase::ImageResponse;
+using ImageTyp = msr::airlib::VehicleCameraBase::ImageType;
+
+
 
 //#include "configs.h"
 // Control functions
@@ -22,7 +27,12 @@ struct image_response {
 	geometry_msgs::Pose pose;
 	geometry_msgs::Pose pose_gt; //ground truth
     geometry_msgs::Twist twist;	
+    bool valid_data = true;
+
 };
+
+
+using ImageResponse = msr::airlib::VehicleCameraBase::ImageResponse;
 
 class input_sampler {
 public:
@@ -41,10 +51,13 @@ public:
 	// *** F:DN Camera functions
 	// cv::Mat poll_frame();
 	// cv::Mat poll_frame_depth();
-	struct image_response poll_frame();
-
+	
+    void do_nothing();
+    void poll_frame();
+    struct image_response poll_frame_and_decode();
+    struct image_response image_decode();
 private:
- std::string localization_method;	
+     std::string localization_method;	
     msr::airlib::MultirotorRpcLibClient * client;
 };
 
