@@ -6,10 +6,10 @@
 #include "common/Common.hpp"
 #include <mutex>
 #include <chrono>
+#include "common/VectorMath.hpp"
 using namespace std::chrono;
-
 std::mutex image_response_queue_mutex;
-std::queue<std::vector<ImageRes>>  image_response_queue;
+std::queue<struct image_response> image_response_queue;
 std::mutex client_mutex;
 input_sampler::input_sampler() : client(0), localization_method("ground_truth")
 {
@@ -106,27 +106,29 @@ void input_sampler::poll_frame()
 
     const int max_tries = 1000000;
 	std::vector<ImageReq> request = {
-		ImageReq(1, ImageTyp::Scene),
-	    ImageReq(1, ImageTyp::DepthPlanner)
+		ImageReq(0, ImageTyp::Scene),
+	    ImageReq(0, ImageTyp::DepthPlanner)
 	};
 
     try{ 
+        
+        struct image_response response;
         while(true){
             partf_s  = steady_clock::now();
 
             client_mutex.lock(); 
              
-            std::vector<ImageRes> response = client->simGetImages(request);
-            static auto initial_pos_gps = client->getPosition();
-            auto p = client->getPosition();
-            auto q = client->getOrientation();
+            //std::vector<ImageRes> response = client->simGetImages(request);
+            response.image = client->simGetImages(request);
+            response.p = client->getPosition();
+            response.q = client->getOrientation();
 
-            for (int i = 0; response.size() != request.size() && i < max_tries; i++) {
-                response = client->simGetImages(request);
+            for (int i = 0; response.image.size() != request.size() && i < max_tries; i++) {
+                response.image = client->simGetImages(request);
             }
 
             image_response_queue_mutex.lock(); 
-            if (response.size() == request.size()) {
+            if (response.image.size() == request.size()) {
                 image_response_queue.push(response);
             } 
             image_response_queue_mutex.unlock(); 
@@ -153,7 +155,7 @@ void input_sampler::do_nothing(void) {
 
 
 
-struct image_response input_sampler::image_decode(void){
+struct image_response_decoded input_sampler::image_decode(void){
     try{ 
     file_to_output.open("/home/nvidia/catkin_ws/src/publishAirsimImgs/src/timing.txt",
              std::ios_base::app);
@@ -161,7 +163,7 @@ struct image_response input_sampler::image_decode(void){
     image_response_queue_mutex.lock(); 
     if (image_response_queue.empty()){
         image_response_queue_mutex.unlock(); 
-        struct image_response result;
+        struct image_response_decoded result;
         result.valid_data = false; 
         return  result;
     }
@@ -172,22 +174,23 @@ struct image_response input_sampler::image_decode(void){
 	//using ImageType = msr::airlib::VehicleCameraBase::ImageType;
 
     
-    std::vector<ImageRes> response = image_response_queue.front();
+    //std::vector<ImageRes> response = image_response_queue.front();
+    struct image_response response = image_response_queue.front();
     image_response_queue.pop();
     image_response_queue_mutex.unlock(); 
 
 
     
-	struct image_response result;
+	struct image_response_decoded result;
    
 #if CV_MAJOR_VERSION==3
 		// result.left = cv::imdecode(response.at(0).image_data_uint8, cv::IMREAD_COLOR);
-		result.right = cv::imdecode(response.at(0).image_data_uint8, cv::IMREAD_COLOR);
-		result.depth = cv::imdecode(response.at(1).image_data_uint8, cv::IMREAD_GRAYSCALE);
+		result.right = cv::imdecode(response.image.at(0).image_data_uint8, cv::IMREAD_COLOR);
+		result.depth = cv::imdecode(response.image.at(1).image_data_uint8, cv::IMREAD_GRAYSCALE);
 #else
 		// result.left = cv::imdecode(response.at(0).image_data_uint8, CV_LOAD_IMAGE_COLOR);
-		result.right = cv::imdecode(response.at(0).image_data_uint8, CV_LOAD_IMAGE_COLOR);
-		result.depth = cv::imdecode(response.at(1).image_data_uint8, CV_LOAD_IMAGE_GRAYSCALE);
+		result.right = cv::imdecode(response.image.at(0).image_data_uint8, CV_LOAD_IMAGE_COLOR);
+		result.depth = cv::imdecode(response.image.at(1).image.image_data_uint8, CV_LOAD_IMAGE_GRAYSCALE);
 #endif
 
         result.depth.convertTo(result.depth, CV_32FC1, 1.0/2.56);
@@ -195,32 +198,33 @@ struct image_response input_sampler::image_decode(void){
         
             
     //ground truth values
-    static auto initial_pos_gt= response.back().camera_position;
-    result.pose_gt.position.x = response.back().camera_position.x() - initial_pos_gt.x();
-    result.pose_gt.position.y = response.back().camera_position.y() - initial_pos_gt.y();
-    result.pose_gt.position.z = response.back().camera_position.z() - initial_pos_gt.z();
+    static auto initial_pos_gt= response.image.back().camera_position;
+    result.pose_gt.position.x = response.image.back().camera_position.x() - initial_pos_gt.x();
+    result.pose_gt.position.y = response.image.back().camera_position.y() - initial_pos_gt.y();
+    result.pose_gt.position.z = response.image.back().camera_position.z() - initial_pos_gt.z();
 
-    result.pose_gt.orientation.x = response.back().camera_orientation.x();
-    result.pose_gt.orientation.y = response.back().camera_orientation.y();
-    result.pose_gt.orientation.z = response.back().camera_orientation.z();
-    result.pose_gt.orientation.w = response.back().camera_orientation.w();
+    result.pose_gt.orientation.x = response.image.back().camera_orientation.x();
+    result.pose_gt.orientation.y = response.image.back().camera_orientation.y();
+    result.pose_gt.orientation.z = response.image.back().camera_orientation.z();
+    result.pose_gt.orientation.w = response.image.back().camera_orientation.w();
     
     partf2_e  = steady_clock::now();
     auto partf2_t = duration_cast<milliseconds>(partf2_e - partf2_s).count();
 
-    file_to_output<<"part_f_decode"<<partf2_t<< std::endl;
-    /* 
-    if(this->localization_method == "gps") {
-                result.pose.position.x = p.x() - initial_pos_gps.x();
-        result.pose.position.y = p.y() - initial_pos_gps.y();
-        result.pose.position.z = p.z() - initial_pos_gps.z();
+    static msr::airlib::Vector3r initial_pos_gps = client->getPosition();
 
-        result.pose.orientation.x = q.x();
-        result.pose.orientation.y = q.y();
-        result.pose.orientation.z = q.z();
-        result.pose.orientation.w = q.w();
+    file_to_output<<"part_f_decode"<<partf2_t<< std::endl;
+    if(this->localization_method == "gps") {
+        result.pose.position.x = response.p.x() - initial_pos_gps.x();
+        result.pose.position.y = response.p.y() - initial_pos_gps.y();
+        result.pose.position.z = response.p.z() - initial_pos_gps.z();
+
+        result.pose.orientation.x = response.q.x();
+        result.pose.orientation.y = response.q.y();
+        result.pose.orientation.z = response.q.z();
+        result.pose.orientation.w = response.q.w();
     }
-*/
+
 
         //file_to_output<<"part_f"<<partf_t<< std::endl;
     //file_to_output<<"part2_f"<<partf2_t<< std::endl;
@@ -238,7 +242,7 @@ struct image_response input_sampler::image_decode(void){
 }
 
 
-struct image_response input_sampler::poll_frame_and_decode()
+struct image_response_decoded input_sampler::poll_frame_and_decode()
 {
 	
     file_to_output.open("/home/nvidia/catkin_ws/src/publishAirsimImgs/src/timing.txt",
@@ -261,7 +265,7 @@ struct image_response input_sampler::poll_frame_and_decode()
 	//using ImageResponse = msr::airlib::VehicleCameraBase::ImageResponse;
 	//using ImageType = msr::airlib::VehicleCameraBase::ImageType;
 
-	struct image_response result;
+	struct image_response_decoded result;
 	const int max_tries = 1000000;
 
 	std::vector<ImageReq> request = {
@@ -274,6 +278,7 @@ struct image_response input_sampler::poll_frame_and_decode()
 	
     partf_s = steady_clock::now();
     std::vector<ImageRes> response = client->simGetImages(request);
+    
     partf_e = steady_clock::now();
     auto partf_t = duration_cast<milliseconds>(partf_e - partf_s).count();
 

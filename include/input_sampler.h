@@ -7,6 +7,7 @@
 #include "vehicles/multirotor/api/MultirotorRpcLibClient.hpp"
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/Twist.h>
+#include "common/Common.hpp"
 using ImageReq = msr::airlib::VehicleCameraBase::ImageRequest;
 using ImageRes = msr::airlib::VehicleCameraBase::ImageResponse;
 using ImageTyp = msr::airlib::VehicleCameraBase::ImageType;
@@ -16,7 +17,7 @@ using ImageTyp = msr::airlib::VehicleCameraBase::ImageType;
 //#include "configs.h"
 // Control functions
 
-struct image_response {
+struct image_response_decoded {
 	cv::Mat left;
 	cv::Mat right;
 	
@@ -30,6 +31,15 @@ struct image_response {
     bool valid_data = true;
 
 };
+
+struct image_response{
+   std::vector<ImageRes> image;
+
+   msr::airlib::Vector3r p;
+   msr::airlib::Quaternionr q;
+};
+
+
 
 
 using ImageResponse = msr::airlib::VehicleCameraBase::ImageResponse;
@@ -54,8 +64,8 @@ public:
 	
     void do_nothing();
     void poll_frame();
-    struct image_response poll_frame_and_decode();
-    struct image_response image_decode();
+    struct image_response_decoded poll_frame_and_decode();
+    struct image_response_decoded image_decode();
 private:
      std::string localization_method;	
     msr::airlib::MultirotorRpcLibClient * client;

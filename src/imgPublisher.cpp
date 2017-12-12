@@ -23,11 +23,11 @@ msr::airlib::MultirotorRpcLibClient * client;
 extern std::mutex client_mutex;
 void sigIntHandler(int sig)
 {
-   // my_thread.join(); 
+    //my_thread.join(); 
     client_mutex.lock(); 
     ros::shutdown();
-    exit(0);
-    client_mutex.unlock();
+    //exit(0);
+    //client_mutex.unlock();
 }
 
 
@@ -247,7 +247,7 @@ int main(int argc, char **argv)
     
     //loop_rate.sleep();
   }
-  poll_frame_thread.join();
+  //poll_frame_thread.join();
   return 0;
 }
 
