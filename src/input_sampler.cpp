@@ -11,21 +11,26 @@ using namespace std::chrono;
 std::mutex image_response_queue_mutex;
 std::queue<struct image_response> image_response_queue;
 std::mutex client_mutex;
-input_sampler::input_sampler() : client(0), localization_method("ground_truth")
+volatile bool exit_out = false;
+input_sampler::input_sampler() : client(0), localization_method("ground_truth"), ip_addr("not provided"), port(000)
 {
 	connect();
 }
 
 input_sampler::input_sampler(const std::string& ip_addr, uint16_t port) : client(0), localization_method("ground_truth")
 {
-	connect(ip_addr, port);
+      this->ip_addr = ip_addr;
+      this->port = port;
+      connect(ip_addr, port);
 }
 
 
 input_sampler::input_sampler(const std::string& ip_addr, uint16_t port, std::string localization_method) : client(0)
 {
 	connect(ip_addr, port);
-    this->localization_method = localization_method;
+      this->ip_addr = ip_addr;
+      this->port = port;
+      this->localization_method = localization_method;
 }
 
 
@@ -92,8 +97,8 @@ static void convertToDisparity(const cv::Mat& input, cv::Mat& output, float f = 
 std::ofstream file_to_output;
 void input_sampler::poll_frame()
 {
-    
-    
+
+    msr::airlib::MultirotorRpcLibClient *my_client = new msr::airlib::MultirotorRpcLibClient(this->ip_addr, this->port);
     std::ofstream file_to_output_2;
     file_to_output_2.open("/home/nvidia/catkin_ws/src/publishAirsimImgs/src/timing_t1.txt",
          std::ios_base::app);
@@ -117,14 +122,24 @@ void input_sampler::poll_frame()
             partf_s  = steady_clock::now();
 
             client_mutex.lock(); 
-             
+	    if (exit_out) {
+		std::cout << "killing the poll thread" << std::endl;
+		std::ofstream myfile;
+	        myfile.open("/home/wcui/catkin_ws/blah.txt", std::ofstream::app);
+    		myfile << "killing the poll thread" << std::endl;
+    		myfile.close(); 
+		client_mutex.unlock(); 
+		// delete my_client;
+		// my_client = nullptr;
+		return;
+	    } 
             //std::vector<ImageRes> response = client->simGetImages(request);
-            response.image = client->simGetImages(request);
-            response.p = client->getPosition();
-            response.q = client->getOrientation();
+            response.image = my_client->simGetImages(request);
+            response.p = my_client->getPosition();
+            response.q = my_client->getOrientation();
 
             for (int i = 0; response.image.size() != request.size() && i < max_tries; i++) {
-                response.image = client->simGetImages(request);
+                response.image = my_client->simGetImages(request);
             }
 
             image_response_queue_mutex.lock(); 
@@ -136,7 +151,6 @@ void input_sampler::poll_frame()
             auto partf_t = duration_cast<milliseconds>(partf_e - partf_s).count();
             file_to_output_2<<"part_f_poll_frame_light"<<partf_t<< std::endl;
             client_mutex.unlock(); 
-              
         }
     }
     catch(...){
@@ -144,6 +158,9 @@ void input_sampler::poll_frame()
         return; 
         exit(0);
     }
+
+    // delete my_client;
+    // my_client = nullptr;
 }
 
 void input_sampler::do_nothing(void) {

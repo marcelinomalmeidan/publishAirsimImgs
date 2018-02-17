@@ -19,15 +19,22 @@
 
 using namespace std;
 string localization_method;
-msr::airlib::MultirotorRpcLibClient * client;
+//msr::airlib::MultirotorRpcLibClient * client;
 extern std::mutex client_mutex;
+extern volatile bool exit_out;
 void sigIntHandler(int sig)
 {
     //my_thread.join(); 
-    client_mutex.lock(); 
+    // client_mutex.lock(); 
     ros::shutdown();
-    //exit(0);
-    //client_mutex.unlock();
+    //abort();
+    exit_out = true; 
+    std::cout << "killing the main thread" << std::endl;
+    std::ofstream myfile;
+    myfile.open("/home/wcui/catkin_ws/blah.txt", std::ofstream::app);
+    myfile << "killing the main thread" << std::endl;
+    myfile.close(); 
+    // client_mutex.unlock();
 }
 
 
@@ -164,7 +171,7 @@ int main(int argc, char **argv)
   }
 
    //this connects us to the drone 
-  client = new msr::airlib::MultirotorRpcLibClient(ip_addr, port);
+  //client = new msr::airlib::MultirotorRpcLibClient(ip_addr, port);
   //client->enableApiControl(false);
 
 
@@ -186,7 +193,6 @@ int main(int argc, char **argv)
   // *** F:DN end of communication with simulator (Airsim)
   while (ros::ok())
   {
-    
     auto imgs = input_sample__obj.image_decode();
     //auto imgs = input_sample__obj.poll_frame_and_decode();
     if (!imgs.valid_data) {
@@ -246,8 +252,14 @@ int main(int argc, char **argv)
     ros::spinOnce();
     
     //loop_rate.sleep();
-  }
-  //poll_frame_thread.join();
+  // if(exit_out) {
+//	break;
+//   }  
+}
+  exit_out = true; 
+  poll_frame_thread.join();
+  printf("\n\n\n\AFAJS:KLFHASKL:JFHASKLFJHASL:KGHASKL:HGSA\n\n\n\n");
+  //ros::shutdown(); 
   return 0;
 }
 

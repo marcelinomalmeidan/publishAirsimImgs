@@ -69,6 +69,9 @@ public:
 private:
      std::string localization_method;	
     msr::airlib::MultirotorRpcLibClient * client;
+    std::string ip_addr;
+    uint16_t port;
+
 };
 
 #endif
