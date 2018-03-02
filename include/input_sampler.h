@@ -30,6 +30,7 @@ struct image_response_decoded {
     geometry_msgs::Twist twist;	
     bool valid_data = true;
 
+	uint64_t timestamp;
 };
 
 struct image_response{
@@ -37,6 +38,8 @@ struct image_response{
 
    msr::airlib::Vector3r p;
    msr::airlib::Quaternionr q;
+
+   uint64_t timestamp;
 };
 
 
@@ -72,6 +75,8 @@ private:
     std::string ip_addr;
     uint16_t port;
 
+    uint64_t timestamp_offset;
+    bool first_image = true;
 };
 
 #endif
