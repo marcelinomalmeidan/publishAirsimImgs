@@ -77,7 +77,7 @@ sensor_msgs::CameraInfo getCameraParams(){
     return CameraParam;
 }
 
-void CameraPosePublisher(geometry_msgs::Pose CamPose, geometry_msgs::Pose CamPose_gt)
+void CameraPosePublisher(geometry_msgs::Pose CamPose, geometry_msgs::Pose CamPose_gt, const ros::Time& timestamp)
 {
     static tf::TransformBroadcaster br;
     tf::Transform transformQuad, transformCamera;
@@ -99,8 +99,8 @@ void CameraPosePublisher(geometry_msgs::Pose CamPose, geometry_msgs::Pose CamPos
                                              q_cam.z, 
                                              q_cam.w));
 
-    if (localization_method != "ground_truth" && localization_method !="orb_slam2_rgbd"){ //note that slam itself posts this transform
-        br.sendTransform(tf::StampedTransform(transformCamera, ros::Time::now(), "world", localization_method));
+    if (localization_method == "gps"){ //note that slam itself posts this transform
+        br.sendTransform(tf::StampedTransform(transformCamera, timestamp, "world", localization_method));
     }  
     
     
@@ -123,7 +123,7 @@ void CameraPosePublisher(geometry_msgs::Pose CamPose, geometry_msgs::Pose CamPos
                                              q_cam_gt.y,
                                              q_cam_gt.z, 
                                              q_cam_gt.w));
-    br_gt.sendTransform(tf::StampedTransform(transformCamera_gt, ros::Time::now(), "world", "ground_truth"));
+    br_gt.sendTransform(tf::StampedTransform(transformCamera_gt, timestamp, "world", "ground_truth"));
 }
 
 void do_nothing(){
@@ -199,11 +199,15 @@ int main(int argc, char **argv)
         continue;
     }
 
-    
+    uint32_t timestamp_s = uint32_t(imgs.timestamp / 1000000000);
+    uint32_t timestamp_ns = uint32_t(imgs.timestamp % 1000000000);
+    ros::Time timestamp(timestamp_s, timestamp_ns);
+    // timestamp = ros::Time::now();
+
     cv::Mat disparityImageMat;
     imgs.depth.convertTo(disparityImageMat, CV_8UC1);
     stereo_msgs::DisparityImage disparityImg;
-    disparityImg.header.stamp = ros::Time::now();
+    disparityImg.header.stamp = timestamp;
     
     disparityImg.header.frame_id= localization_method;
     //disparityImg.header.frame_id= "camera";
@@ -228,7 +232,7 @@ int main(int argc, char **argv)
     msgDepth = cv_bridge::CvImage(std_msgs::Header(), "32FC1", imgs.depth).toImageMsg();
 
     //Stamp messages
-    msgCameraInfo.header.stamp = ros::Time::now();
+    msgCameraInfo.header.stamp = timestamp;
     // msgImgL->header.stamp = msgCameraInfo.header.stamp;
     msgImgR->header.stamp = msgCameraInfo.header.stamp;
     msgDepth->header.stamp =  msgCameraInfo.header.stamp;
@@ -238,7 +242,7 @@ int main(int argc, char **argv)
     //msgDepth->header.frame_id = "camera";
 
     //Publish transforms into tf tree
-    CameraPosePublisher(imgs.pose, imgs.pose_gt);
+    CameraPosePublisher(imgs.pose, imgs.pose_gt, timestamp);
 
     //Publish images
     // imgL_pub.publish(msgImgL);
@@ -258,7 +262,6 @@ int main(int argc, char **argv)
 }
   exit_out = true; 
   poll_frame_thread.join();
-  printf("\n\n\n\AFAJS:KLFHASKL:JFHASKLFJHASL:KGHASKL:HGSA\n\n\n\n");
   //ros::shutdown(); 
   return 0;
 }

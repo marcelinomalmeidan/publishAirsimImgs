@@ -7,6 +7,7 @@
 #include <mutex>
 #include <chrono>
 #include "common/VectorMath.hpp"
+#include <ros/ros.h>
 using namespace std::chrono;
 std::mutex image_response_queue_mutex;
 std::queue<struct image_response> image_response_queue;
@@ -98,6 +99,8 @@ std::ofstream file_to_output;
 void input_sampler::poll_frame()
 {
 
+    
+    static uint64 last_time_stamp = 0; 
     msr::airlib::MultirotorRpcLibClient *my_client = new msr::airlib::MultirotorRpcLibClient(this->ip_addr, this->port);
     std::ofstream file_to_output_2;
     file_to_output_2.open("/home/nvidia/catkin_ws/src/publishAirsimImgs/src/timing_t1.txt",
@@ -141,6 +144,11 @@ void input_sampler::poll_frame()
             for (int i = 0; response.image.size() != request.size() && i < max_tries; i++) {
                 response.image = my_client->simGetImages(request);
             }
+            response.timestamp = response.image.at(0).time_stamp;
+            if (last_time_stamp >= response.timestamp) {
+                ROS_ERROR_STREAM("imag time stamps shouldn't be out of order");
+            }
+            last_time_stamp = response.timestamp;
 
             image_response_queue_mutex.lock(); 
             if (response.image.size() == request.size()) {
@@ -248,8 +256,7 @@ struct image_response_decoded input_sampler::image_decode(void){
     //file_to_output<<"all_f"<<allf_t<< std::endl;
     //file_to_output.close();
     
-    
-
+    result.timestamp = response.timestamp;
 
     return result;
     }
@@ -288,7 +295,7 @@ struct image_response_decoded input_sampler::poll_frame_and_decode()
 	std::vector<ImageReq> request = {
 		// ImageRequest(0, ImageType::Scene),
 		ImageReq(1, ImageTyp::Scene),
-	    ImageReq(1, ImageTyp::DepthPlanner)
+	    	ImageReq(1, ImageTyp::DepthPlanner)
 	};
 
     //result.twist = twist();
