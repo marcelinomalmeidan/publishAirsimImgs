@@ -139,7 +139,7 @@ int main(int argc, char **argv)
   //Start ROS ----------------------------------------------------------------
   ros::init(argc, argv, "airsim_imgPublisher");
   ros::NodeHandle n;
-  ros::Rate loop_rate(60);
+  ros::Rate loop_rate(20);
 
     
   //Publishers ---------------------------------------------------------------
@@ -147,14 +147,16 @@ int main(int argc, char **argv)
 
   // image_transport::Publisher imgL_pub = it.advertise("/Airsim/left/image_raw", 1);
   image_transport::Publisher imgR_pub = it.advertise("/Airsim/right/image_raw", 1);
-  image_transport::Publisher depth_pub = it.advertise("/Airsim/depth", 1);
+  image_transport::Publisher depth_pub_front = it.advertise("/Airsim/depth_front", 1);
+  image_transport::Publisher depth_pub_back = it.advertise("/Airsim/depth_back", 1);
+
 
    ros::Publisher imgParamL_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/left/camera_info", 1);
   ros::Publisher imgParamR_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/right/camera_info", 1);
   ros::Publisher imgParamDepth_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/camera_info", 1);
   ros::Publisher disparity_pub = n.advertise<stereo_msgs::DisparityImage> ("/Airsim/disparity", 1);
   //ROS Messages
-  sensor_msgs::ImagePtr msgImgL, msgImgR, msgDepth;
+  sensor_msgs::ImagePtr msgImgL, msgImgR, msgDepth_front, msgDepth_back;
   sensor_msgs::CameraInfo msgCameraInfo;
 
   //Parameters for communicating with Airsim
@@ -184,16 +186,21 @@ int main(int argc, char **argv)
   input_sampler input_sample__obj(ip_addr.c_str(), port, localization_method);
    msgCameraInfo = getCameraParams();
 
-  
+  bool all_front = false;
+  if (!ros::param::get("/airsim_imgPublisher/all_front",all_front)){
+      ROS_ERROR_STREAM("all front is not defined for airsim_imgPublisher");
+      exit(0);
+  }
    
  
-  std::thread poll_frame_thread(&input_sampler::poll_frame, &input_sample__obj);
+  std::thread poll_frame_thread(&input_sampler::poll_frame, 
+          &input_sample__obj, all_front);
   signal(SIGINT, sigIntHandler);
 
   // *** F:DN end of communication with simulator (Airsim)
   while (ros::ok())
   {
-    auto imgs = input_sample__obj.image_decode();
+    auto imgs = input_sample__obj.image_decode(all_front);
     //auto imgs = input_sample__obj.poll_frame_and_decode();
     if (!imgs.valid_data) {
         continue;
@@ -202,10 +209,23 @@ int main(int argc, char **argv)
     uint32_t timestamp_s = uint32_t(imgs.timestamp / 1000000000);
     uint32_t timestamp_ns = uint32_t(imgs.timestamp % 1000000000);
     ros::Time timestamp(timestamp_s, timestamp_ns);
+    if(imgs.timestamp != uint64_t(timestamp_s)*1000000000 + timestamp_ns){
+        std::cout<<"---------------------failed"<<std::setprecision(30)<<imgs.timestamp<< "!=" 
+                 <<std::setprecision(30)<<timestamp_s*1000000000 + timestamp_ns<<std::endl;
+        ROS_ERROR_STREAM("coversion in img publisher failed");
+    }
+    /* 
+    else{
+        std::cout<<"-----------------------fine"<<std::setprecision(30)<<imgs.timestamp<< "!=" 
+                 <<std::setprecision(30)<<timestamp_s*1000000000 + timestamp_ns<<std::endl;
+
+    }
+    */
     // timestamp = ros::Time::now();
 
     cv::Mat disparityImageMat;
-    imgs.depth.convertTo(disparityImageMat, CV_8UC1);
+    imgs.depth_front.convertTo(disparityImageMat, CV_8UC1);
+    imgs.depth_back.convertTo(disparityImageMat, CV_8UC1);
     stereo_msgs::DisparityImage disparityImg;
     disparityImg.header.stamp = timestamp;
     
@@ -229,16 +249,19 @@ int main(int argc, char **argv)
     // *** F:DN conversion of opencv images to ros images
     // msgImgL = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imgs.left).toImageMsg();
     msgImgR = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imgs.right).toImageMsg();
-    msgDepth = cv_bridge::CvImage(std_msgs::Header(), "32FC1", imgs.depth).toImageMsg();
+    msgDepth_front = cv_bridge::CvImage(std_msgs::Header(), "32FC1", imgs.depth_front).toImageMsg();
+    msgDepth_back = cv_bridge::CvImage(std_msgs::Header(), "32FC1", imgs.depth_back).toImageMsg();
 
     //Stamp messages
     msgCameraInfo.header.stamp = timestamp;
     // msgImgL->header.stamp = msgCameraInfo.header.stamp;
     msgImgR->header.stamp = msgCameraInfo.header.stamp;
-    msgDepth->header.stamp =  msgCameraInfo.header.stamp;
+    msgDepth_front->header.stamp =  msgCameraInfo.header.stamp;
+    msgDepth_back->header.stamp =  msgCameraInfo.header.stamp;
 
     // Set the frame ids
-    msgDepth->header.frame_id = localization_method;
+    msgDepth_front->header.frame_id = localization_method;
+    msgDepth_back->header.frame_id = localization_method;
     //msgDepth->header.frame_id = "camera";
 
     //Publish transforms into tf tree
@@ -247,7 +270,8 @@ int main(int argc, char **argv)
     //Publish images
     // imgL_pub.publish(msgImgL);
     imgR_pub.publish(msgImgR);
-    depth_pub.publish(msgDepth);
+    depth_pub_front.publish(msgDepth_front);
+    depth_pub_back.publish(msgDepth_back);
     imgParamL_pub.publish(msgCameraInfo);
     imgParamR_pub.publish(msgCameraInfo);
     imgParamDepth_pub.publish(msgCameraInfo);

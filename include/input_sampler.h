@@ -21,8 +21,9 @@ struct image_response_decoded {
 	cv::Mat left;
 	cv::Mat right;
 	
-	cv::Mat depth;
-	cv::Mat planar_depth;
+	cv::Mat depth_front;
+	cv::Mat depth_back;
+    cv::Mat planar_depth;
 	cv::Mat disparity;
 	
 	geometry_msgs::Pose pose;
@@ -66,9 +67,10 @@ public:
 	// cv::Mat poll_frame_depth();
 	
     void do_nothing();
-    void poll_frame();
+    void poll_frame(bool);
     struct image_response_decoded poll_frame_and_decode();
-    struct image_response_decoded image_decode();
+    struct image_response_decoded image_decode(bool);
+
 private:
      std::string localization_method;	
     msr::airlib::MultirotorRpcLibClient * client;

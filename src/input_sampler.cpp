@@ -96,7 +96,7 @@ static void convertToDisparity(const cv::Mat& input, cv::Mat& output, float f = 
 
 
 std::ofstream file_to_output;
-void input_sampler::poll_frame()
+void input_sampler::poll_frame(bool all_front)
 {
 
     
@@ -113,10 +113,18 @@ void input_sampler::poll_frame()
     steady_clock::time_point partf2_e; //one invocation of tracker start
 
     const int max_tries = 1000000;
-	std::vector<ImageReq> request = {
-		ImageReq(0, ImageTyp::Scene),
-	    ImageReq(0, ImageTyp::DepthPlanner)
-	};
+	
+    ImageTyp image_type;
+    int cameraId;
+    if (all_front) {
+         cameraId = 0;
+         image_type = ImageTyp::Scene;
+    }else{
+         cameraId = 4;
+         image_type = ImageTyp::DepthPlanner;
+    }
+    std::vector<ImageReq> request = {ImageReq(cameraId, image_type),
+	    ImageReq(0, ImageTyp::DepthPlanner)};
 
     try{ 
         
@@ -178,9 +186,7 @@ void input_sampler::do_nothing(void) {
 }
 
 
-
-
-struct image_response_decoded input_sampler::image_decode(void){
+struct image_response_decoded input_sampler::image_decode(bool all_front){
     try{ 
     file_to_output.open("/home/nvidia/catkin_ws/src/publishAirsimImgs/src/timing.txt",
              std::ios_base::app);
@@ -210,23 +216,37 @@ struct image_response_decoded input_sampler::image_decode(void){
    
 #if CV_MAJOR_VERSION==3
 		// result.left = cv::imdecode(response.at(0).image_data_uint8, cv::IMREAD_COLOR);
-		result.right = cv::imdecode(response.image.at(0).image_data_uint8, cv::IMREAD_COLOR);
-		result.depth = cv::imdecode(response.image.at(1).image_data_uint8, cv::IMREAD_GRAYSCALE);
+        result.depth_front = cv::imdecode(response.image.at(1).image_data_uint8, cv::IMREAD_GRAYSCALE);
+    
+        if(all_front) {	
+            result.right = cv::imdecode(response.image.at(0).image_data_uint8, cv::IMREAD_COLOR);
+	    }else{
+		    result.depth_back = cv::imdecode(response.image.at(0).image_data_uint8, cv::IMREAD_GRAYSCALE);
+        }
+
 #else
 		// result.left = cv::imdecode(response.at(0).image_data_uint8, CV_LOAD_IMAGE_COLOR);
-		result.right = cv::imdecode(response.image.at(0).image_data_uint8, CV_LOAD_IMAGE_COLOR);
-		result.depth = cv::imdecode(response.image.at(1).image.image_data_uint8, CV_LOAD_IMAGE_GRAYSCALE);
+        result.depth_front = cv::imdecode(response.image.at(1).image.image_data_uint8, CV_LOAD_IMAGE_GRAYSCALE);
+
+        if (all_front) {	
+            result.right = cv::imdecode(response.image.at(0).image_data_uint8, CV_LOAD_IMAGE_COLOR);
+        }else{
+            result.depth_back = cv::imdecode(response.image.at(0).image.image_data_uint8, CV_LOAD_IMAGE_GRAYSCALE);
+        }
 #endif
 
-        result.depth.convertTo(result.depth, CV_32FC1, 1.0/2.56);
+        result.depth_front.convertTo(result.depth_front, CV_32FC1, 1.0/2.56);
 
-        
-            
-    //ground truth values
-    static auto initial_pos_gt= response.image.back().camera_position;
-    result.pose_gt.position.x = response.image.back().camera_position.x() - initial_pos_gt.x();
-    result.pose_gt.position.y = response.image.back().camera_position.y() - initial_pos_gt.y();
-    result.pose_gt.position.z = response.image.back().camera_position.z() - initial_pos_gt.z();
+        if (!all_front) {	
+            result.depth_back.convertTo(result.depth_back, CV_32FC1, 1.0/2.56);
+        }
+
+
+        //ground truth values
+        static auto initial_pos_gt= response.image.back().camera_position;
+        result.pose_gt.position.x = response.image.back().camera_position.x() - initial_pos_gt.x();
+        result.pose_gt.position.y = response.image.back().camera_position.y() - initial_pos_gt.y();
+        result.pose_gt.position.z = response.image.back().camera_position.z() - initial_pos_gt.z();
 
     result.pose_gt.orientation.x = response.image.back().camera_orientation.x();
     result.pose_gt.orientation.y = response.image.back().camera_orientation.y();
@@ -319,11 +339,11 @@ struct image_response_decoded input_sampler::poll_frame_and_decode()
 #if CV_MAJOR_VERSION==3
 		// result.left = cv::imdecode(response.at(0).image_data_uint8, cv::IMREAD_COLOR);
 		result.right = cv::imdecode(response.at(0).image_data_uint8, cv::IMREAD_COLOR);
-		result.depth = cv::imdecode(response.at(1).image_data_uint8, cv::IMREAD_GRAYSCALE);
+		result.depth_front = cv::imdecode(response.at(1).image_data_uint8, cv::IMREAD_GRAYSCALE);
 #else
 		// result.left = cv::imdecode(response.at(0).image_data_uint8, CV_LOAD_IMAGE_COLOR);
 		result.right = cv::imdecode(response.at(0).image_data_uint8, CV_LOAD_IMAGE_COLOR);
-		result.depth = cv::imdecode(response.at(1).image_data_uint8, CV_LOAD_IMAGE_GRAYSCALE);
+		result.depth_front = cv::imdecode(response.at(1).image_data_uint8, CV_LOAD_IMAGE_GRAYSCALE);
 #endif
 
         /*
@@ -340,7 +360,7 @@ struct image_response_decoded input_sampler::poll_frame_and_decode()
         }
         */
 
-        result.depth.convertTo(result.depth, CV_32FC1, 1.0/2.56);
+        result.depth_front.convertTo(result.depth_front, CV_32FC1, 1.0/2.56);
 
         // result.planar_depth = cv::Mat(height, width, CV_32FC1);
         // convertToPlanDepth(result.depth, result.depth);
