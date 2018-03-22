@@ -19,7 +19,6 @@
 
 using namespace std;
 string localization_method;
-//msr::airlib::MultirotorRpcLibClient * client;
 extern std::mutex client_mutex;
 extern volatile bool exit_out;
 void sigIntHandler(int sig)
@@ -139,8 +138,10 @@ int main(int argc, char **argv)
   //Start ROS ----------------------------------------------------------------
   ros::init(argc, argv, "airsim_imgPublisher");
   ros::NodeHandle n;
-  ros::Rate loop_rate(20);
 
+  double loop_rate_hz;
+  ros::param::get("/airsim_imgPublisher/loop_rate", loop_rate_hz);
+  ros::Rate loop_rate(loop_rate_hz);
     
   //Publishers ---------------------------------------------------------------
   image_transport::ImageTransport it(n);
@@ -198,6 +199,7 @@ int main(int argc, char **argv)
   signal(SIGINT, sigIntHandler);
 
   // *** F:DN end of communication with simulator (Airsim)
+  ros::Time last_timestamp(0);
   while (ros::ok())
   {
     auto imgs = input_sample__obj.image_decode(all_front);
@@ -268,22 +270,27 @@ int main(int argc, char **argv)
     CameraPosePublisher(imgs.pose, imgs.pose_gt, timestamp);
 
     //Publish images
-    // imgL_pub.publish(msgImgL);
-    imgR_pub.publish(msgImgR);
-    depth_pub_front.publish(msgDepth_front);
-    depth_pub_back.publish(msgDepth_back);
-    imgParamL_pub.publish(msgCameraInfo);
-    imgParamR_pub.publish(msgCameraInfo);
-    imgParamDepth_pub.publish(msgCameraInfo);
-    disparity_pub.publish(disparityImg);
+    if (timestamp > last_timestamp) {
+        // imgL_pub.publish(msgImgL);
+        imgR_pub.publish(msgImgR);
+        depth_pub_front.publish(msgDepth_front);
+        depth_pub_back.publish(msgDepth_back);
+        imgParamL_pub.publish(msgCameraInfo);
+        imgParamR_pub.publish(msgCameraInfo);
+        imgParamDepth_pub.publish(msgCameraInfo);
+        disparity_pub.publish(disparityImg);
+
+        timestamp = last_timestamp;
+    }
     
     ros::spinOnce();
     
-    //loop_rate.sleep();
+    loop_rate.sleep();
   // if(exit_out) {
 //	break;
-//   }  
-}
+//   }
+  }
+
   exit_out = true; 
   poll_frame_thread.join();
   //ros::shutdown(); 

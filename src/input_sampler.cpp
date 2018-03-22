@@ -206,8 +206,10 @@ struct image_response_decoded input_sampler::image_decode(bool all_front){
 
     
     //std::vector<ImageRes> response = image_response_queue.front();
-    struct image_response response = image_response_queue.front();
-    image_response_queue.pop();
+    // struct image_response response = image_response_queue.front();
+    struct image_response response = image_response_queue.back();
+    // image_response_queue.pop();
+    std::queue<struct image_response>().swap(image_response_queue);
     image_response_queue_mutex.unlock(); 
 
 
