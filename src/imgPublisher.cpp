@@ -202,7 +202,8 @@ int main(int argc, char **argv)
   ros::Time last_timestamp(0);
   while (ros::ok())
   {
-    auto imgs = input_sample__obj.image_decode(all_front);
+      ros::Time start_hook_t = ros::Time::now();
+     auto imgs = input_sample__obj.image_decode(all_front);
     //auto imgs = input_sample__obj.poll_frame_and_decode();
     if (!imgs.valid_data) {
         continue;
@@ -285,6 +286,9 @@ int main(int argc, char **argv)
     
     ros::spinOnce();
     
+    ros::Time end_hook_t = ros::Time::now();
+    //ROS_INFO_STREAM("decoding and publishing fram time"<< end_hook_t - start_hook_t);
+
     loop_rate.sleep();
   // if(exit_out) {
 //	break;

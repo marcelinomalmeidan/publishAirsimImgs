@@ -131,6 +131,7 @@ void input_sampler::poll_frame(bool all_front)
         struct image_response response;
         while(true){
             partf_s  = steady_clock::now();
+            ros::Time start_hook_t = ros::Time::now();
 
             client_mutex.lock(); 
 	    if (exit_out) {
@@ -167,6 +168,8 @@ void input_sampler::poll_frame(bool all_front)
             auto partf_t = duration_cast<milliseconds>(partf_e - partf_s).count();
             file_to_output_2<<"part_f_poll_frame_light"<<partf_t<< std::endl;
             client_mutex.unlock(); 
+            ros::Time end_hook_t = ros::Time::now();
+            //ROS_INFO_STREAM("polling fram time"<< end_hook_t - start_hook_t);
         }
     }
     catch(...){
@@ -187,6 +190,7 @@ void input_sampler::do_nothing(void) {
 
 
 struct image_response_decoded input_sampler::image_decode(bool all_front){
+     
     try{ 
     file_to_output.open("/home/nvidia/catkin_ws/src/publishAirsimImgs/src/timing.txt",
              std::ios_base::app);
