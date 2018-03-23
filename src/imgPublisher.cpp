@@ -16,14 +16,38 @@
 #include "stereo_msgs/DisparityImage.h"
 #include <thread>
 #include <mutex>
+#include <profile_manager/profiling_data_srv.h>
+#include <profile_manager/start_profiling_srv.h>
 
 using namespace std;
+
+// Profiling
+long long g_poll_decode_acc = 0;
+int g_poll_decode_ctr = 0;
+bool CLCT_DATA;
+
+void log_data_before_shutting_down(){
+
+    std::string ns = ros::this_node::getName();
+    profile_manager::profiling_data_srv profiling_data_srv_inst;
+    
+    profiling_data_srv_inst.request.key = "poll_decode";
+    profiling_data_srv_inst.request.value = (((double)g_poll_decode_acc)/1e9)/g_poll_decode_ctr;
+    if (ros::service::waitForService("/record_profiling_data", 10)){ 
+        if(!ros::service::call("/record_profiling_data",profiling_data_srv_inst)){
+            ROS_ERROR_STREAM("could not probe data using stats manager");
+        }
+    }
+} 
+
 string localization_method;
 //msr::airlib::MultirotorRpcLibClient * client;
 extern std::mutex client_mutex;
 extern volatile bool exit_out;
-void sigIntHandler(int sig)
+void sigIntHandlerPrivate(int sig)
 {
+    
+    log_data_before_shutting_down();
     //my_thread.join(); 
     // client_mutex.lock(); 
     ros::shutdown();
@@ -51,6 +75,8 @@ sensor_msgs::CameraInfo getCameraParams(){
     ros::param::get("/airsim_imgPublisher/cy",cy);
     ros::param::get("/airsim_imgPublisher/scale_x",width);
     ros::param::get("/airsim_imgPublisher/scale_y",height);
+    ros::param::get("/CLCT_DATA",CLCT_DATA);
+
 
     //CameraParam.header.frame_id = "camera";
     CameraParam.header.frame_id = localization_method;
@@ -192,102 +218,89 @@ int main(int argc, char **argv)
       exit(0);
   }
    
- 
   std::thread poll_frame_thread(&input_sampler::poll_frame, 
           &input_sample__obj, all_front);
-  signal(SIGINT, sigIntHandler);
+  signal(SIGINT, sigIntHandlerPrivate);
 
-  // *** F:DN end of communication with simulator (Airsim)
   while (ros::ok())
   {
       ros::Time start_hook_t = ros::Time::now();
-     auto imgs = input_sample__obj.image_decode(all_front);
-    //auto imgs = input_sample__obj.poll_frame_and_decode();
-    if (!imgs.valid_data) {
-        continue;
-    }
+      auto imgs = input_sample__obj.image_decode(all_front);
+      if (!imgs.valid_data) {
+          continue;
+      }
 
-    uint32_t timestamp_s = uint32_t(imgs.timestamp / 1000000000);
-    uint32_t timestamp_ns = uint32_t(imgs.timestamp % 1000000000);
-    ros::Time timestamp(timestamp_s, timestamp_ns);
-    if(imgs.timestamp != uint64_t(timestamp_s)*1000000000 + timestamp_ns){
-        std::cout<<"---------------------failed"<<std::setprecision(30)<<imgs.timestamp<< "!=" 
-                 <<std::setprecision(30)<<timestamp_s*1000000000 + timestamp_ns<<std::endl;
-        ROS_ERROR_STREAM("coversion in img publisher failed");
-    }
-    /* 
-    else{
-        std::cout<<"-----------------------fine"<<std::setprecision(30)<<imgs.timestamp<< "!=" 
-                 <<std::setprecision(30)<<timestamp_s*1000000000 + timestamp_ns<<std::endl;
+      uint32_t timestamp_s = uint32_t(imgs.timestamp / 1000000000);
+      uint32_t timestamp_ns = uint32_t(imgs.timestamp % 1000000000);
+      ros::Time timestamp(timestamp_s, timestamp_ns);
+      if(imgs.timestamp != uint64_t(timestamp_s)*1000000000 + timestamp_ns){
+          std::cout<<"---------------------failed"<<std::setprecision(30)<<imgs.timestamp<< "!=" 
+              <<std::setprecision(30)<<timestamp_s*1000000000 + timestamp_ns<<std::endl;
+          ROS_ERROR_STREAM("coversion in img publisher failed");
+      }
 
-    }
-    */
-    // timestamp = ros::Time::now();
+      cv::Mat disparityImageMat;
+      imgs.depth_front.convertTo(disparityImageMat, CV_8UC1);
+      imgs.depth_back.convertTo(disparityImageMat, CV_8UC1);
+      stereo_msgs::DisparityImage disparityImg;
+      disparityImg.header.stamp = timestamp;
 
-    cv::Mat disparityImageMat;
-    imgs.depth_front.convertTo(disparityImageMat, CV_8UC1);
-    imgs.depth_back.convertTo(disparityImageMat, CV_8UC1);
-    stereo_msgs::DisparityImage disparityImg;
-    disparityImg.header.stamp = timestamp;
-    
-    disparityImg.header.frame_id= localization_method;
-    //disparityImg.header.frame_id= "camera";
-    
-    disparityImg.f = 128; //focal length, half of the image width
-    disparityImg.T = .14; //baseline, half of the distance between the two cameras
-    disparityImg.min_disparity = .44; // f.t/z(depth max)
-    disparityImg.max_disparity = 179; // f.t/z(depth min)
-    disparityImg.delta_d = .018; //possibly change
-    disparityImg.image = *(cv_bridge::CvImage(std_msgs::Header(), "8UC1", disparityImageMat).toImageMsg());
-    disparityImg.valid_window.x_offset = 0;
-    disparityImg.valid_window.y_offset = 0;
-    disparityImg.valid_window.height =  144;
-    disparityImg.valid_window.width =  256;
-    disparityImg.valid_window.do_rectify =  false; //possibly change
-    
+      disparityImg.header.frame_id= localization_method;
+      //disparityImg.header.frame_id= "camera";
 
+      disparityImg.f = 128; //focal length, half of the image width
+      disparityImg.T = .14; //baseline, half of the distance between the two cameras
+      disparityImg.min_disparity = .44; // f.t/z(depth max)
+      disparityImg.max_disparity = 179; // f.t/z(depth min)
+      disparityImg.delta_d = .018; //possibly change
+      disparityImg.image = *(cv_bridge::CvImage(std_msgs::Header(), "8UC1", disparityImageMat).toImageMsg());
+      disparityImg.valid_window.x_offset = 0;
+      disparityImg.valid_window.y_offset = 0;
+      disparityImg.valid_window.height =  144;
+      disparityImg.valid_window.width =  256;
+      disparityImg.valid_window.do_rectify =  false; //possibly change
 
-    // *** F:DN conversion of opencv images to ros images
-    // msgImgL = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imgs.left).toImageMsg();
-    msgImgR = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imgs.right).toImageMsg();
-    msgDepth_front = cv_bridge::CvImage(std_msgs::Header(), "32FC1", imgs.depth_front).toImageMsg();
-    msgDepth_back = cv_bridge::CvImage(std_msgs::Header(), "32FC1", imgs.depth_back).toImageMsg();
+      // *** F:DN conversion of opencv images to ros images
+      // msgImgL = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imgs.left).toImageMsg();
+      msgImgR = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imgs.right).toImageMsg();
+      msgDepth_front = cv_bridge::CvImage(std_msgs::Header(), "32FC1", imgs.depth_front).toImageMsg();
+      msgDepth_back = cv_bridge::CvImage(std_msgs::Header(), "32FC1", imgs.depth_back).toImageMsg();
 
-    //Stamp messages
-    msgCameraInfo.header.stamp = timestamp;
-    // msgImgL->header.stamp = msgCameraInfo.header.stamp;
-    msgImgR->header.stamp = msgCameraInfo.header.stamp;
-    msgDepth_front->header.stamp =  msgCameraInfo.header.stamp;
-    msgDepth_back->header.stamp =  msgCameraInfo.header.stamp;
+      //Stamp messages
+      msgCameraInfo.header.stamp = timestamp;
+      // msgImgL->header.stamp = msgCameraInfo.header.stamp;
+      msgImgR->header.stamp = msgCameraInfo.header.stamp;
+      msgDepth_front->header.stamp =  msgCameraInfo.header.stamp;
+      msgDepth_back->header.stamp =  msgCameraInfo.header.stamp;
 
-    // Set the frame ids
-    msgDepth_front->header.frame_id = localization_method;
-    msgDepth_back->header.frame_id = localization_method;
-    //msgDepth->header.frame_id = "camera";
+      // Set the frame ids
+      msgDepth_front->header.frame_id = localization_method;
+      msgDepth_back->header.frame_id = localization_method;
 
-    //Publish transforms into tf tree
-    CameraPosePublisher(imgs.pose, imgs.pose_gt, timestamp);
+      //Publish transforms into tf tree
+      CameraPosePublisher(imgs.pose, imgs.pose_gt, timestamp);
 
-    //Publish images
-    // imgL_pub.publish(msgImgL);
-    imgR_pub.publish(msgImgR);
-    depth_pub_front.publish(msgDepth_front);
-    depth_pub_back.publish(msgDepth_back);
-    imgParamL_pub.publish(msgCameraInfo);
-    imgParamR_pub.publish(msgCameraInfo);
-    imgParamDepth_pub.publish(msgCameraInfo);
-    disparity_pub.publish(disparityImg);
-    
-    ros::spinOnce();
-    
-    ros::Time end_hook_t = ros::Time::now();
-    //ROS_INFO_STREAM("decoding and publishing fram time"<< end_hook_t - start_hook_t);
+      //Publish images
+      imgR_pub.publish(msgImgR);
+      depth_pub_front.publish(msgDepth_front);
+      depth_pub_back.publish(msgDepth_back);
+      imgParamL_pub.publish(msgCameraInfo);
+      imgParamR_pub.publish(msgCameraInfo);
+      imgParamDepth_pub.publish(msgCameraInfo);
+      disparity_pub.publish(disparityImg);
 
-    //loop_rate.sleep();
-  // if(exit_out) {
-//	break;
-//   }  
-}
+      ros::spinOnce();
+
+      ros::Time end_hook_t = ros::Time::now();
+
+      if (CLCT_DATA) { 
+          g_poll_decode_acc += (imgs.poll_time + ((end_hook_t - start_hook_t).toSec()*1e9));
+          //ROS_INFO_STREAM("decode "<< (((end_hook_t - start_hook_t).toSec()*1e9))); 
+          //ROS_INFO_STREAM("decode "<< imgs.poll_time);
+          
+          g_poll_decode_ctr++; 
+      }
+  }
   exit_out = true; 
   poll_frame_thread.join();
   //ros::shutdown(); 
