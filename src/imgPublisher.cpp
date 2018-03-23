@@ -41,7 +41,6 @@ void log_data_before_shutting_down(){
 } 
 
 string localization_method;
-//msr::airlib::MultirotorRpcLibClient * client;
 extern std::mutex client_mutex;
 extern volatile bool exit_out;
 void sigIntHandlerPrivate(int sig)
@@ -165,8 +164,10 @@ int main(int argc, char **argv)
   //Start ROS ----------------------------------------------------------------
   ros::init(argc, argv, "airsim_imgPublisher");
   ros::NodeHandle n;
-  ros::Rate loop_rate(20);
 
+  double loop_rate_hz;
+  ros::param::get("/airsim_imgPublisher/loop_rate", loop_rate_hz);
+  ros::Rate loop_rate(loop_rate_hz);
     
   //Publishers ---------------------------------------------------------------
   image_transport::ImageTransport it(n);
@@ -300,7 +301,9 @@ int main(int argc, char **argv)
           
           g_poll_decode_ctr++; 
       }
+      loop_rate.sleep(); 
   }
+
   exit_out = true; 
   poll_frame_thread.join();
   //ros::shutdown(); 
