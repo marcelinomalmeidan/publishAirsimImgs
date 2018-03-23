@@ -241,10 +241,10 @@ struct image_response_decoded input_sampler::image_decode(bool all_front){
         }
 #endif
 
-        result.depth_front.convertTo(result.depth_front, CV_32FC1, 1.0/2.56);
+        result.depth_front.convertTo(result.depth_front, CV_32FC1, 25.6/256);
 
         if (!all_front) {	
-            result.depth_back.convertTo(result.depth_back, CV_32FC1, 1.0/2.56);
+            result.depth_back.convertTo(result.depth_back, CV_32FC1, 25.6/256);
         }
 
 
@@ -366,7 +366,7 @@ struct image_response_decoded input_sampler::poll_frame_and_decode()
         }
         */
 
-        result.depth_front.convertTo(result.depth_front, CV_32FC1, 1.0/2.56);
+        result.depth_front.convertTo(result.depth_front, CV_32FC1, 25.6/256);
 
         // result.planar_depth = cv::Mat(height, width, CV_32FC1);
         // convertToPlanDepth(result.depth, result.depth);
