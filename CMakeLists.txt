@@ -22,6 +22,7 @@ include_directories(
     #/usr/local/cuda/include/
    ${catkin_workspace_path}/src/publishAirsimImgs/include 
    ${catkin_workspace_path}/src/publishAirsimImgs/src
+   ${catkin_workspace_path}/devel/include 
    )
 link_directories(
     ${Airlib_addr}/lib 
