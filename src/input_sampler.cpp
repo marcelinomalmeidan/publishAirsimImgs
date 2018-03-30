@@ -112,7 +112,8 @@ void input_sampler::poll_frame(bool all_front)
          cameraId = 4;
          image_type = ImageTyp::DepthPlanner;
     }
-    std::vector<ImageReq> request = {ImageReq(cameraId, image_type),
+    std::vector<ImageReq> request = {ImageReq(1, ImageTyp::Scene),
+        ImageReq(cameraId, image_type),
 	    ImageReq(0, ImageTyp::DepthPlanner)};
 
     try{ 
@@ -191,23 +192,23 @@ struct image_response_decoded input_sampler::image_decode(bool all_front){
 
 
 #if CV_MAJOR_VERSION==3
-        // result.left = cv::imdecode(response.at(0).image_data_uint8, cv::IMREAD_COLOR);
-        result.depth_front = cv::imdecode(response.image.at(1).image_data_uint8, cv::IMREAD_GRAYSCALE);
+        result.left = cv::imdecode(response.image.at(0).image_data_uint8, cv::IMREAD_COLOR);
+        result.depth_front = cv::imdecode(response.image.at(2).image_data_uint8, cv::IMREAD_GRAYSCALE);
 
         if(all_front) {	
-            result.right = cv::imdecode(response.image.at(0).image_data_uint8, cv::IMREAD_COLOR);
+            result.right = cv::imdecode(response.image.at(1).image_data_uint8, cv::IMREAD_COLOR);
         }else{
-            result.depth_back = cv::imdecode(response.image.at(0).image_data_uint8, cv::IMREAD_GRAYSCALE);
+            result.depth_back = cv::imdecode(response.image.at(1).image_data_uint8, cv::IMREAD_GRAYSCALE);
         }
 
 #else
-        // result.left = cv::imdecode(response.at(0).image_data_uint8, CV_LOAD_IMAGE_COLOR);
-        result.depth_front = cv::imdecode(response.image.at(1).image.image_data_uint8, CV_LOAD_IMAGE_GRAYSCALE);
+        result.left = cv::imdecode(response.at(0).image_data_uint8, CV_LOAD_IMAGE_COLOR);
+        result.depth_front = cv::imdecode(response.image.at(2).image.image_data_uint8, CV_LOAD_IMAGE_GRAYSCALE);
 
         if (all_front) {	
-            result.right = cv::imdecode(response.image.at(0).image_data_uint8, CV_LOAD_IMAGE_COLOR);
+            result.right = cv::imdecode(response.image.at(1).image_data_uint8, CV_LOAD_IMAGE_COLOR);
         }else{
-            result.depth_back = cv::imdecode(response.image.at(0).image.image_data_uint8, CV_LOAD_IMAGE_GRAYSCALE);
+            result.depth_back = cv::imdecode(response.image.at(1).image.image_data_uint8, CV_LOAD_IMAGE_GRAYSCALE);
         }
 #endif
 
@@ -279,7 +280,7 @@ struct image_response_decoded input_sampler::poll_frame_and_decode()
     const int max_tries = 1000000;
 
     std::vector<ImageReq> request = {
-        // ImageRequest(0, ImageType::Scene),
+        ImageReq(0, ImageTyp::Scene),
         ImageReq(1, ImageTyp::Scene),
         ImageReq(1, ImageTyp::DepthPlanner)
     };

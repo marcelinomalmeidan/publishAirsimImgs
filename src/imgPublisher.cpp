@@ -172,7 +172,7 @@ int main(int argc, char **argv)
   //Publishers ---------------------------------------------------------------
   image_transport::ImageTransport it(n);
 
-  // image_transport::Publisher imgL_pub = it.advertise("/Airsim/left/image_raw", 1);
+  image_transport::Publisher imgL_pub = it.advertise("/Airsim/left/image_raw", 1);
   image_transport::Publisher imgR_pub = it.advertise("/Airsim/right/image_raw", 1);
   image_transport::Publisher depth_pub_front = it.advertise("/Airsim/depth_front", 1);
   image_transport::Publisher depth_pub_back = it.advertise("/Airsim/depth_back", 1);
@@ -211,7 +211,7 @@ int main(int argc, char **argv)
   
   //Local variables
   input_sampler input_sample__obj(ip_addr.c_str(), port, localization_method);
-   msgCameraInfo = getCameraParams();
+  msgCameraInfo = getCameraParams();
 
   bool all_front = false;
   if (!ros::param::get("/airsim_imgPublisher/all_front",all_front)){
@@ -262,14 +262,14 @@ int main(int argc, char **argv)
       disparityImg.valid_window.do_rectify =  false; //possibly change
 
       // *** F:DN conversion of opencv images to ros images
-      // msgImgL = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imgs.left).toImageMsg();
+      msgImgL = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imgs.left).toImageMsg();
       msgImgR = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imgs.right).toImageMsg();
       msgDepth_front = cv_bridge::CvImage(std_msgs::Header(), "32FC1", imgs.depth_front).toImageMsg();
       msgDepth_back = cv_bridge::CvImage(std_msgs::Header(), "32FC1", imgs.depth_back).toImageMsg();
 
       //Stamp messages
       msgCameraInfo.header.stamp = timestamp;
-      // msgImgL->header.stamp = msgCameraInfo.header.stamp;
+      msgImgL->header.stamp = msgCameraInfo.header.stamp;
       msgImgR->header.stamp = msgCameraInfo.header.stamp;
       msgDepth_front->header.stamp =  msgCameraInfo.header.stamp;
       msgDepth_back->header.stamp =  msgCameraInfo.header.stamp;
@@ -282,6 +282,7 @@ int main(int argc, char **argv)
       CameraPosePublisher(imgs.pose, imgs.pose_gt, timestamp);
 
       //Publish images
+      imgL_pub.publish(msgImgL);
       imgR_pub.publish(msgImgR);
       depth_pub_front.publish(msgDepth_front);
       depth_pub_back.publish(msgDepth_back);
