@@ -106,7 +106,7 @@ void input_sampler::poll_frame(bool all_front)
     ImageTyp image_type;
     int cameraId;
     if (all_front) {
-         cameraId = 0;
+         cameraId = 2;
          image_type = ImageTyp::Scene;
     }else{
          cameraId = 4;
@@ -116,8 +116,7 @@ void input_sampler::poll_frame(bool all_front)
         ImageReq(cameraId, image_type),
 	    ImageReq(0, ImageTyp::DepthPlanner)};
 
-    try{ 
-        
+    try {
         struct image_response response;
         while(true){
             ros::Time start_hook_t = ros::Time::now();
@@ -137,12 +136,12 @@ void input_sampler::poll_frame(bool all_front)
             }
             
             ros::Time now =  ros::Time::now();
-            if (this->localization_method == "vins_mono"){//for vins mono the imgs and imu 
+            // if (this->localization_method == "vins_mono"){//for vins mono the imgs and imu 
                                                           //need to be synchronized
-                response.timestamp = response.image.at(0).time_stamp;
-            }else{            //for profiling purposes 
-                response.timestamp = (uint64_t) now.sec*1e9 + (uint64_t)now.nsec;
-            }
+            response.timestamp = response.image.at(0).time_stamp;
+            // }else{            //for profiling purposes 
+            //     response.timestamp = (uint64_t) now.sec*1e9 + (uint64_t)now.nsec;
+            // }
             
             if (last_time_stamp >= response.timestamp) {
                 ROS_ERROR_STREAM("imag time stamps shouldn't be out of order"<< last_time_stamp<< " " <<response.timestamp<< " "); 
@@ -280,9 +279,9 @@ struct image_response_decoded input_sampler::poll_frame_and_decode()
     const int max_tries = 1000000;
 
     std::vector<ImageReq> request = {
-        ImageReq(0, ImageTyp::Scene),
         ImageReq(1, ImageTyp::Scene),
-        ImageReq(1, ImageTyp::DepthPlanner)
+        ImageReq(2, ImageTyp::Scene),
+        ImageReq(0, ImageTyp::DepthPlanner)
     };
 
     //result.twist = twist();
