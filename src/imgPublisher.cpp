@@ -148,7 +148,11 @@ void CameraPosePublisher(geometry_msgs::Pose CamPose, geometry_msgs::Pose CamPos
                                              q_cam_gt.y,
                                              q_cam_gt.z, 
                                              q_cam_gt.w));
-    br_gt.sendTransform(tf::StampedTransform(transformCamera_gt, timestamp, "world", "ground_truth"));
+    br_gt.sendTransform(tf::StampedTransform(transformCamera_gt, timestamp, "world", "camera"));
+
+    tf::Transform cam2quad(tf::Quaternion(0, 0, 0, 1), tf::Vector3(0, 0, -0.46));
+    // cam2quad.setOrigin(tf::Vector3(0, -0.45, 0));
+    br_gt.sendTransform(tf::StampedTransform(cam2quad, timestamp, "camera", "ground_truth"));
 }
 
 void do_nothing(){
@@ -246,8 +250,8 @@ int main(int argc, char **argv)
       stereo_msgs::DisparityImage disparityImg;
       disparityImg.header.stamp = timestamp;
 
-      disparityImg.header.frame_id= localization_method;
-      //disparityImg.header.frame_id= "camera";
+      //disparityImg.header.frame_id= localization_method;
+      disparityImg.header.frame_id= "camera";
 
       disparityImg.f = 128; //focal length, half of the image width
       disparityImg.T = .14; //baseline, half of the distance between the two cameras
@@ -275,8 +279,10 @@ int main(int argc, char **argv)
       msgDepth_back->header.stamp =  msgCameraInfo.header.stamp;
 
       // Set the frame ids
-      msgDepth_front->header.frame_id = localization_method;
-      msgDepth_back->header.frame_id = localization_method;
+      //msgDepth_front->header.frame_id = localization_method;
+      //msgDepth_back->header.frame_id = localization_method;
+      msgDepth_front->header.frame_id = "camera";
+      msgDepth_back->header.frame_id = "camera";
 
       //Publish transforms into tf tree
       CameraPosePublisher(imgs.pose, imgs.pose_gt, timestamp);
