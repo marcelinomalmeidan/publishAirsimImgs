@@ -150,7 +150,7 @@ void CameraPosePublisher(geometry_msgs::Pose CamPose, geometry_msgs::Pose CamPos
                                              q_cam_gt.w));
     br_gt.sendTransform(tf::StampedTransform(transformCamera_gt, timestamp, "world", "camera"));
 
-    tf::Transform cam2quad(tf::Quaternion(0, 0, 0, 1), tf::Vector3(0, 0, -0.46));
+    tf::Transform cam2quad(tf::Quaternion(0, 0, 0, 1), tf::Vector3(0, 0, -0.35));
     // cam2quad.setOrigin(tf::Vector3(0, -0.45, 0));
     br_gt.sendTransform(tf::StampedTransform(cam2quad, timestamp, "camera", "ground_truth"));
 }
