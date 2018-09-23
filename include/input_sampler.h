@@ -8,13 +8,12 @@
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/Twist.h>
 #include "common/Common.hpp"
-using ImageReq = msr::airlib::VehicleCameraBase::ImageRequest;
-using ImageRes = msr::airlib::VehicleCameraBase::ImageResponse;
-using ImageTyp = msr::airlib::VehicleCameraBase::ImageType;
-
-
-
 //#include "configs.h"
+
+using ImageReq = msr::airlib::ImageCaptureBase::ImageRequest;
+using ImageRes = msr::airlib::ImageCaptureBase::ImageResponse;
+using ImageTyp = msr::airlib::ImageCaptureBase::ImageType;
+
 // Control functions
 
 struct image_response_decoded {
@@ -44,10 +43,6 @@ struct image_response{
    uint64_t poll_time;
 };
 
-
-
-
-using ImageResponse = msr::airlib::VehicleCameraBase::ImageResponse;
 
 class input_sampler {
 public:
