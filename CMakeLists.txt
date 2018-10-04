@@ -3,8 +3,8 @@ cmake_minimum_required(VERSION 2.8.3)
 project(airsim_img_publisher)
 
 
-set (Airlib_addr  $ENV{HOME}/AirSim/AirLib)
-set (catkin_workspace_path $ENV{HOME}/catkin_ws) 
+set (Airlib_addr  $ENV{mavbench_base_dir}/AirSim/AirLib)
+set (catkin_workspace_path $ENV{mavbench_base_dir}/catkin_ws) 
 
 
 ## Compile as C++11, supported in ROS Kinetic and newer
