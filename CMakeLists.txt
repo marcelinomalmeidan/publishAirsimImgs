@@ -3,8 +3,8 @@ cmake_minimum_required(VERSION 2.8.3)
 project(airsim_img_publisher)
 
 
-set (Airlib_addr  $ENV{mavbench_base_dir}/AirSim/AirLib)
-set (catkin_workspace_path $ENV{mavbench_base_dir}/catkin_ws) 
+set (Airlib_addr  $ENV{AirSim_base_dir}/AirLib)
+set (catkin_workspace_path $ENV{base_dir}/catkin_ws) 
 
 
 ## Compile as C++11, supported in ROS Kinetic and newer
@@ -20,8 +20,8 @@ include_directories(
     ${Airlib_addr}/include/controllers
     ${EIGEN3_INCLUDE_DIR}
     #/usr/local/cuda/include/
-   ${catkin_workspace_path}/src/publishAirsimImgs/include 
-   ${catkin_workspace_path}/src/publishAirsimImgs/src
+    $ENV{mavbench_apps_base_dir}/deps/publishAirsimImgs/include 
+    $ENV{mavbench_apps_base_dir}/deps/publishAirsimImgs/src
    ${catkin_workspace_path}/devel/include 
    )
 link_directories(
