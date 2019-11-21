@@ -177,12 +177,14 @@ int main(int argc, char **argv)
   image_transport::ImageTransport it(n);
 
   // image_transport::Publisher imgL_pub = it.advertise("/Airsim/left/image_raw", 1);
+
   image_transport::Publisher imgR_pub = it.advertise("/Airsim/right/image_raw", 1);
   image_transport::Publisher depth_pub_front = it.advertise("/Airsim/depth_front", 1);
   image_transport::Publisher depth_pub_back = it.advertise("/Airsim/depth_back", 1);
 
 
-   ros::Publisher imgParamL_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/left/camera_info", 1);
+  ros::Publisher timing_msg_pub = n.advertise<std_msgs::Header> ("/timing_msgs", 1);
+  ros::Publisher imgParamL_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/left/camera_info", 1);
   ros::Publisher imgParamR_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/right/camera_info", 1);
   ros::Publisher imgParamDepth_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/camera_info", 1);
   ros::Publisher disparity_pub = n.advertise<stereo_msgs::DisparityImage> ("/Airsim/disparity", 1);
@@ -227,6 +229,7 @@ int main(int argc, char **argv)
           &input_sample__obj, all_front);
   signal(SIGINT, sigIntHandlerPrivate);
 
+  std_msgs::Header timing_msg; //this is for measuring sensory to actuation latnecy and throughput
   while (ros::ok())
   {
       ros::Time start_hook_t = ros::Time::now();
@@ -288,6 +291,8 @@ int main(int argc, char **argv)
       CameraPosePublisher(imgs.pose, imgs.pose_gt, timestamp);
 
       //Publish images
+      timing_msg.stamp = timestamp;
+      timing_msg_pub.publish(timing_msg);
       imgR_pub.publish(msgImgR);
       depth_pub_front.publish(msgDepth_front);
       depth_pub_back.publish(msgDepth_back);
