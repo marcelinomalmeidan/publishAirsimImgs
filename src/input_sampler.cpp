@@ -394,3 +394,154 @@ geometry_msgs::Twist input_sampler::twist()
     return result;
 }
 
+void input_sampler::poll_frame_sphere()
+{
+    static uint64 last_time_stamp = 0; 
+    msr::airlib::MultirotorRpcLibClient *my_client = new msr::airlib::MultirotorRpcLibClient(this->ip_addr, this->port);
+
+    const int max_tries = 1000000;
+    
+    std::vector<ImageReq> request = {
+        ImageReq(0, ImageTyp::DepthPlanner), // center front
+        ImageReq(3, ImageTyp::DepthPlanner), // center downward
+	    ImageReq(4, ImageTyp::DepthPlanner)  // center rear
+    };
+
+    try{ 
+        struct image_response response;
+        while(true){
+            ros::Time start_hook_t = ros::Time::now();
+            client_mutex.lock(); 
+            if (exit_out) {
+                std::cout << "killing the poll thread" << std::endl;
+                client_mutex.unlock(); 
+                return;
+            } 
+            
+            response.image = my_client->simGetImages(request);
+            response.p = my_client->getPosition();
+            response.q = my_client->getOrientation();
+
+            for (int i = 0; response.image.size() != request.size() && i < max_tries; i++) {
+                response.image = my_client->simGetImages(request);
+            }
+            
+            ros::Time now =  ros::Time::now();
+            if (this->localization_method == "vins_mono"){//for vins mono the imgs and imu 
+                                                          //need to be synchronized
+                response.timestamp = response.image.at(0).time_stamp;
+            }else{            //for profiling purposes 
+                response.timestamp = (uint64_t) now.sec*1e9 + (uint64_t)now.nsec;
+            }
+            
+            if (last_time_stamp >= response.timestamp) {
+                ROS_ERROR_STREAM("imag time stamps shouldn't be out of order"<< last_time_stamp<< " " <<response.timestamp<< " "); 
+            }
+            last_time_stamp = response.timestamp;
+
+            image_response_queue_mutex.lock(); 
+            if (response.image.size() == request.size()) {
+                response.poll_time = (ros::Time::now() - start_hook_t).toSec()*1e9;
+                //ROS_INFO_STREAM("poll only"<<response.poll_time); 
+                image_response_queue.push(response);
+            } 
+            image_response_queue_mutex.unlock(); 
+            
+            client_mutex.unlock(); 
+        }
+    }
+    catch(...){
+        printf("got here"); 
+        return; 
+        exit(0);
+    }
+}
+
+#define FRONT_INDEX 0
+#define BOTTOM_INDEX 1
+#define BACK_INDEX 2
+
+struct image_response_decoded input_sampler::image_decode_sphere(){
+    try{ 
+        image_response_queue_mutex.lock(); 
+        if (image_response_queue.empty()){
+            image_response_queue_mutex.unlock(); 
+            struct image_response_decoded result;
+            result.valid_data = false; 
+            return  result;
+        }
+
+        struct image_response response = image_response_queue.back();
+        std::queue<struct image_response>().swap(image_response_queue);
+        image_response_queue_mutex.unlock(); 
+
+        struct image_response_decoded result;
+
+
+#if CV_MAJOR_VERSION==3
+        result.depth_front = cv::imdecode(response.image.at(FRONT_INDEX).image_data_uint8, cv::IMREAD_GRAYSCALE);
+        result.depth_bottom = cv::imdecode(response.image.at(BOTTOM_INDEX).image_data_uint8, cv::IMREAD_GRAYSCALE);
+        result.depth_back = cv::imdecode(response.image.at(BACK_INDEX).image_data_uint8, cv::IMREAD_GRAYSCALE);
+
+#else
+        result.depth_front = cv::imdecode(response.image.at(FRONT_INDEX).image.image_data_uint8, CV_LOAD_IMAGE_GRAYSCALE);
+        result.depth_bottom = cv::imdecode(response.image.at(BOTTOM_INDEX).image.image_data_uint8, CV_LOAD_IMAGE_GRAYSCALE);
+        result.depth_back = cv::imdecode(response.image.at(BACK_INDEX).image.image_data_uint8, CV_LOAD_IMAGE_GRAYSCALE);
+#endif
+
+        result.depth_front.convertTo(result.depth_front, CV_32FC1, 25.6/256);
+        result.depth_bottom.convertTo(result.depth_bottom, CV_32FC1, 25.6/256);
+        result.depth_back.convertTo(result.depth_back, CV_32FC1, 25.6/256);
+
+        for (int i = 0; i < N_CAMERAS; ++i) {
+            result.poses_gt.push_back(geometry_msgs::Pose());
+
+            //ground truth values
+            static auto initial_pos_gt= response.image[i].camera_position;
+
+            result.poses_gt[i].position.x = response.image[i].camera_position.x() - initial_pos_gt.x();
+            result.poses_gt[i].position.y = response.image[i].camera_position.y() - initial_pos_gt.y();
+            result.poses_gt[i].position.z = response.image[i].camera_position.z() - initial_pos_gt.z();
+
+            result.poses_gt[i].orientation.x = response.image[i].camera_orientation.x();
+            result.poses_gt[i].orientation.y = response.image[i].camera_orientation.y();
+            result.poses_gt[i].orientation.z = response.image[i].camera_orientation.z();
+            result.poses_gt[i].orientation.w = response.image[i].camera_orientation.w();
+        }
+
+        //ground truth values
+        //static auto initial_pos_gt= response.image.back().camera_position;
+
+        //result.pose_gt.position.x = response.image.back().camera_position.x() - initial_pos_gt.x();
+        //result.pose_gt.position.y = response.image.back().camera_position.y() - initial_pos_gt.y();
+        //result.pose_gt.position.z = response.image.back().camera_position.z() - initial_pos_gt.z();
+
+        //result.pose_gt.orientation.x = response.image.back().camera_orientation.x();
+        //result.pose_gt.orientation.y = response.image.back().camera_orientation.y();
+        //result.pose_gt.orientation.z = response.image.back().camera_orientation.z();
+        //result.pose_gt.orientation.w = response.image.back().camera_orientation.w();
+
+        //// this isn't relevant for roborun since we're using
+        // ground truth for localization to begin with
+        // TODO: fix this in the future
+        static msr::airlib::Vector3r initial_pos_gps = client->getPosition();
+
+        if(this->localization_method == "gps") {
+            result.pose.position.x = response.p.x() - initial_pos_gps.x();
+            result.pose.position.y = response.p.y() - initial_pos_gps.y();
+            result.pose.position.z = response.p.z() - initial_pos_gps.z();
+
+            result.pose.orientation.x = response.q.x();
+            result.pose.orientation.y = response.q.y();
+            result.pose.orientation.z = response.q.z();
+            result.pose.orientation.w = response.q.w();
+        }
+
+        result.timestamp = response.timestamp;
+        result.poll_time = response.poll_time;
+        return result;
+    }
+    catch(...){
+        exit(0); 
+    }
+}

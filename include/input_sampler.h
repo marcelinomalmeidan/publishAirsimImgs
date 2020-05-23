@@ -9,6 +9,7 @@
 #include <geometry_msgs/Twist.h>
 #include "common/Common.hpp"
 //#include "configs.h"
+#define N_CAMERAS 3
 
 using ImageReq = msr::airlib::ImageCaptureBase::ImageRequest;
 using ImageRes = msr::airlib::ImageCaptureBase::ImageResponse;
@@ -22,11 +23,18 @@ struct image_response_decoded {
 	
 	cv::Mat depth_front;
 	cv::Mat depth_back;
+	cv::Mat depth_bottom;
     cv::Mat planar_depth;
 	cv::Mat disparity;
-	
+
+    // kept this to not break vanilla mavbench
 	geometry_msgs::Pose pose;
 	geometry_msgs::Pose pose_gt; //ground truth
+
+    // for multiple cameras
+    std::vector<geometry_msgs::Pose> poses;
+    std::vector<geometry_msgs::Pose> poses_gt; // ground truth
+
     geometry_msgs::Twist twist;	
     bool valid_data = true;
     uint64_t poll_time;
@@ -64,8 +72,10 @@ public:
 	
     void do_nothing();
     void poll_frame(bool);
+    void poll_frame_sphere();
     struct image_response_decoded poll_frame_and_decode();
     struct image_response_decoded image_decode(bool);
+    struct image_response_decoded image_decode_sphere();
 
 private:
      std::string localization_method;	
