@@ -401,11 +401,10 @@ void input_sampler::poll_frame_sphere()
 
     const int max_tries = 1000000;
     
-    std::vector<ImageReq> request = {
-        ImageReq(0, ImageTyp::DepthPlanner), // center front
-        ImageReq(3, ImageTyp::DepthPlanner), // center downward
-	    ImageReq(4, ImageTyp::DepthPlanner)  // center rear
-    };
+    std::vector<ImageReq> request;
+    for (int i = 0; i < N_CAMERAS; ++i) {
+    	request.push_back(request_options[i]);
+    }
 
     try{ 
         struct image_response response;
@@ -457,10 +456,6 @@ void input_sampler::poll_frame_sphere()
     }
 }
 
-#define FRONT_INDEX 0
-#define BOTTOM_INDEX 1
-#define BACK_INDEX 2
-
 struct image_response_decoded input_sampler::image_decode_sphere(){
     try{ 
         image_response_queue_mutex.lock(); 
@@ -477,23 +472,17 @@ struct image_response_decoded input_sampler::image_decode_sphere(){
 
         struct image_response_decoded result;
 
+        for (int i = 0; i < N_CAMERAS; ++i) {
+            result.depths.push_back(cv::Mat());
 
 #if CV_MAJOR_VERSION==3
-        result.depth_front = cv::imdecode(response.image.at(FRONT_INDEX).image_data_uint8, cv::IMREAD_GRAYSCALE);
-        result.depth_bottom = cv::imdecode(response.image.at(BOTTOM_INDEX).image_data_uint8, cv::IMREAD_GRAYSCALE);
-        result.depth_back = cv::imdecode(response.image.at(BACK_INDEX).image_data_uint8, cv::IMREAD_GRAYSCALE);
-
+            result.depths[i] = cv::imdecode(response.image.at(i).image_data_uint8, cv::IMREAD_GRAYSCALE);
 #else
-        result.depth_front = cv::imdecode(response.image.at(FRONT_INDEX).image.image_data_uint8, CV_LOAD_IMAGE_GRAYSCALE);
-        result.depth_bottom = cv::imdecode(response.image.at(BOTTOM_INDEX).image.image_data_uint8, CV_LOAD_IMAGE_GRAYSCALE);
-        result.depth_back = cv::imdecode(response.image.at(BACK_INDEX).image.image_data_uint8, CV_LOAD_IMAGE_GRAYSCALE);
+            result.depths[i] = cv::imdecode(response.image.at(i).image.image_data_uint8, CV_LOAD_IMAGE_GRAYSCALE);
 #endif
 
-        result.depth_front.convertTo(result.depth_front, CV_32FC1, 25.6/256);
-        result.depth_bottom.convertTo(result.depth_bottom, CV_32FC1, 25.6/256);
-        result.depth_back.convertTo(result.depth_back, CV_32FC1, 25.6/256);
+            result.depths[i].convertTo(result.depths[i], CV_32FC1, 25.6/256);
 
-        for (int i = 0; i < N_CAMERAS; ++i) {
             result.poses_gt.push_back(geometry_msgs::Pose());
 
             //ground truth values

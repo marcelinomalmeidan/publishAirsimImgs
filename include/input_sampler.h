@@ -11,27 +11,42 @@
 //#include "configs.h"
 #define N_CAMERAS 3
 
+const std::string camera_names[] = {
+    "front",
+	"down",
+    "back",
+    "right",
+	"left"
+};
+
 using ImageReq = msr::airlib::ImageCaptureBase::ImageRequest;
 using ImageRes = msr::airlib::ImageCaptureBase::ImageResponse;
 using ImageTyp = msr::airlib::ImageCaptureBase::ImageType;
 
+const ImageReq request_options[] = {
+	ImageReq(0, ImageTyp::DepthPlanner), // center front
+	ImageReq(3, ImageTyp::DepthPlanner), // center downward
+	ImageReq(4, ImageTyp::DepthPlanner),  // center rear
+	//ImageReq(5, ImageTyp::DepthPlanner),  // center right
+	//ImageReq(6, ImageTyp::DepthPlanner)  // center left
+};
+
 // Control functions
 
 struct image_response_decoded {
+    // kept these to not break vanilla mavbench
 	cv::Mat left;
 	cv::Mat right;
 	
 	cv::Mat depth_front;
 	cv::Mat depth_back;
-	cv::Mat depth_bottom;
     cv::Mat planar_depth;
 	cv::Mat disparity;
-
-    // kept this to not break vanilla mavbench
 	geometry_msgs::Pose pose;
 	geometry_msgs::Pose pose_gt; //ground truth
 
     // for multiple cameras
+    std::vector<cv::Mat> depths;
     std::vector<geometry_msgs::Pose> poses;
     std::vector<geometry_msgs::Pose> poses_gt; // ground truth
 

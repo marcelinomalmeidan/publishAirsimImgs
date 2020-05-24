@@ -164,7 +164,6 @@ void do_nothing(){
 int main(int argc, char **argv)
 {
   
-    
   //Start ROS ----------------------------------------------------------------
   ros::init(argc, argv, "airsim_imgPublisher");
   ros::NodeHandle n;
@@ -173,23 +172,7 @@ int main(int argc, char **argv)
   ros::param::get("/airsim_imgPublisher/loop_rate", loop_rate_hz);
   ros::Rate loop_rate(loop_rate_hz);
     
-  //Publishers ---------------------------------------------------------------
-  image_transport::ImageTransport it(n);
-
-  // image_transport::Publisher imgL_pub = it.advertise("/Airsim/left/image_raw", 1);
-  image_transport::Publisher imgR_pub = it.advertise("/Airsim/right/image_raw", 1);
-  image_transport::Publisher depth_pub_front = it.advertise("/Airsim/depth_front", 1);
-  image_transport::Publisher depth_pub_back = it.advertise("/Airsim/depth_back", 1);
-  image_transport::Publisher depth_pub_bottom = it.advertise("/Airsim/depth_bottom", 1);
-
-
-   ros::Publisher imgParamL_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/left/camera_info", 1);
-  ros::Publisher imgParamR_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/right/camera_info", 1);
-  ros::Publisher imgParamDepth_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/camera_info", 1);
-  ros::Publisher disparity_pub = n.advertise<stereo_msgs::DisparityImage> ("/Airsim/disparity", 1);
   //ROS Messages
-  sensor_msgs::ImagePtr msgImgL, msgImgR, msgDepth_front, msgDepth_back, msgDepth_bottom;
-  sensor_msgs::CameraInfo msgCameraInfo;
 
   //Parameters for communicating with Airsim
   string ip_addr;
@@ -216,7 +199,6 @@ int main(int argc, char **argv)
   
   //Local variables
   input_sampler input_sample__obj(ip_addr.c_str(), port, localization_method);
-   msgCameraInfo = getCameraParams();
 
   bool all_front = false;
   if (!ros::param::get("/airsim_imgPublisher/all_front",all_front)){
@@ -228,6 +210,38 @@ int main(int argc, char **argv)
   // is set to true, we don't care about all_front anymore
   bool sphere_view = false;
   ros::param::get("/airsim_imgPublisher/sphere_view", sphere_view);
+
+  //Publishers ---------------------------------------------------------------
+  image_transport::ImageTransport it(n);
+
+  std::vector<image_transport::Publisher> depth_pubs;
+
+  sensor_msgs::CameraInfo msgCameraInfo = getCameraParams();
+  ros::Publisher imgParamDepth_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/camera_info", 1);
+
+  // for multiple cameras
+  sensor_msgs::ImagePtr msgDepths[N_CAMERAS];
+
+  // to not break vanilla mavbench
+  sensor_msgs::ImagePtr msgImgL, msgImgR, msgDepth_front, msgDepth_back, msgDepth_bottom;
+  image_transport::Publisher depth_pub_front, depth_pub_back, imgR_pub, imgL_pub;
+  ros::Publisher imgParamL_pub, imgParamR_pub, disparity_pub;
+
+  if (sphere_view) {
+	  for (int i = 0; i < N_CAMERAS; ++i) {
+		  std::string cam_topic = "/Airsim/depth_" + camera_names[i];
+		  image_transport::Publisher pub = it.advertise(cam_topic, 1);
+		  depth_pubs.push_back(pub);
+	  }
+  }
+  else {
+	  depth_pub_front = it.advertise("/Airsim/depth_front", 1);
+	  depth_pub_back = it.advertise("/Airsim/depth_back", 1);
+	  imgR_pub = it.advertise("/Airsim/right/image_raw", 1);
+	  // imgL_pub = it.advertise("/Airsim/left/image_raw", 1);
+	  imgParamL_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/left/camera_info", 1);
+	  imgParamR_pub = n.advertise<sensor_msgs::CameraInfo> ("/Airsim/right/camera_info", 1);
+  }
 
   std::thread poll_frame_thread;
   // radhika: I've split the functions for `sphere_view` so that
@@ -244,8 +258,16 @@ int main(int argc, char **argv)
 
   signal(SIGINT, sigIntHandlerPrivate);
 
+  ros::Time this_time, last_time;
+
   while (ros::ok())
   {
+	  //this_time = ros::Time::now();
+	  //ros::Duration frame_latency = (this_time - last_time);
+	  //last_time = ros::Time::now();
+
+	  //std::cout << frame_latency.toSec() << "\n";
+
       ros::Time start_hook_t = ros::Time::now();
 
       struct image_response_decoded imgs;
@@ -272,7 +294,6 @@ int main(int argc, char **argv)
       cv::Mat disparityImageMat;
       imgs.depth_front.convertTo(disparityImageMat, CV_8UC1);
       imgs.depth_back.convertTo(disparityImageMat, CV_8UC1);
-      imgs.depth_bottom.convertTo(disparityImageMat, CV_8UC1);
       stereo_msgs::DisparityImage disparityImg;
       disparityImg.header.stamp = timestamp;
 
@@ -291,41 +312,51 @@ int main(int argc, char **argv)
       disparityImg.valid_window.width =  256;
       disparityImg.valid_window.do_rectify =  false; //possibly change
 
-      // *** F:DN conversion of opencv images to ros images
-      // msgImgL = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imgs.left).toImageMsg();
-      msgImgR = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imgs.right).toImageMsg();
-      msgDepth_front = cv_bridge::CvImage(std_msgs::Header(), "32FC1", imgs.depth_front).toImageMsg();
-      msgDepth_back = cv_bridge::CvImage(std_msgs::Header(), "32FC1", imgs.depth_back).toImageMsg();
-      msgDepth_bottom = cv_bridge::CvImage(std_msgs::Header(), "32FC1", imgs.depth_bottom).toImageMsg();
+      // now for multiple camera
+      if (sphere_view) {
+          msgCameraInfo.header.stamp = timestamp;
+          imgParamDepth_pub.publish(msgCameraInfo);
 
-      //Stamp messages
-      msgCameraInfo.header.stamp = timestamp;
-      // msgImgL->header.stamp = msgCameraInfo.header.stamp;
-      msgImgR->header.stamp = msgCameraInfo.header.stamp;
-      msgDepth_front->header.stamp =  msgCameraInfo.header.stamp;
-      msgDepth_back->header.stamp =  msgCameraInfo.header.stamp;
-      msgDepth_bottom->header.stamp =  msgCameraInfo.header.stamp;
+          for (int i = 0; i < N_CAMERAS; ++i) {
+              msgDepths[i] = cv_bridge::CvImage(std_msgs::Header(), "32FC1", imgs.depths[i]).toImageMsg();
+              msgDepths[i]->header.stamp =  msgCameraInfo.header.stamp;
+              msgDepths[i]->header.frame_id = "camera_" + camera_names[i];
+              CameraPosePublisher(imgs.pose, imgs.poses_gt[i], timestamp, "camera_" + camera_names[i]);
+              depth_pubs[i].publish(msgDepths[i]);
+          }
+      }
+      else {
+          // *** F:DN conversion of opencv images to ros images
+          // msgImgL = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imgs.left).toImageMsg();
+          msgImgR = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imgs.right).toImageMsg();
+          msgDepth_front = cv_bridge::CvImage(std_msgs::Header(), "32FC1", imgs.depth_front).toImageMsg();
+          msgDepth_back = cv_bridge::CvImage(std_msgs::Header(), "32FC1", imgs.depth_back).toImageMsg();
 
-      // Set the frame ids
-      //msgDepth_front->header.frame_id = localization_method;
-      //msgDepth_back->header.frame_id = localization_method;
-      msgDepth_front->header.frame_id = "camera_front";
-      msgDepth_back->header.frame_id = "camera_back";
-      msgDepth_bottom->header.frame_id = "camera_bottom";
+          //Stamp messages
+          msgCameraInfo.header.stamp = timestamp;
+          // msgImgL->header.stamp = msgCameraInfo.header.stamp;
+          msgImgR->header.stamp = msgCameraInfo.header.stamp;
+          msgDepth_front->header.stamp =  msgCameraInfo.header.stamp;
+          msgDepth_back->header.stamp =  msgCameraInfo.header.stamp;
 
-      CameraPosePublisher(imgs.pose, imgs.poses_gt[0], timestamp, "camera_front");
-      CameraPosePublisher(imgs.pose, imgs.poses_gt[1], timestamp, "camera_bottom");
-      CameraPosePublisher(imgs.pose, imgs.poses_gt[2], timestamp, "camera_back");
+          // Set the frame ids
+          //msgDepth_front->header.frame_id = localization_method;
+          //msgDepth_back->header.frame_id = localization_method;
+          msgDepth_front->header.frame_id = "camera_front";
+          msgDepth_back->header.frame_id = "camera_back";
 
-      //Publish images
-      imgR_pub.publish(msgImgR);
-      depth_pub_front.publish(msgDepth_front);
-      depth_pub_back.publish(msgDepth_back);
-      depth_pub_bottom.publish(msgDepth_bottom);
-      imgParamL_pub.publish(msgCameraInfo);
-      imgParamR_pub.publish(msgCameraInfo);
-      imgParamDepth_pub.publish(msgCameraInfo);
-      disparity_pub.publish(disparityImg);
+          CameraPosePublisher(imgs.pose, imgs.poses_gt[0], timestamp, "camera_front");
+          CameraPosePublisher(imgs.pose, imgs.poses_gt[2], timestamp, "camera_back");
+
+          //Publish images
+          imgR_pub.publish(msgImgR);
+          depth_pub_front.publish(msgDepth_front);
+          depth_pub_back.publish(msgDepth_back);
+          imgParamL_pub.publish(msgCameraInfo);
+          imgParamR_pub.publish(msgCameraInfo);
+          imgParamDepth_pub.publish(msgCameraInfo);
+          disparity_pub.publish(disparityImg);
+      }
 
       ros::spinOnce();
 
