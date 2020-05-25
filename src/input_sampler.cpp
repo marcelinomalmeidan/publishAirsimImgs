@@ -494,7 +494,8 @@ struct image_response_decoded input_sampler::image_decode_sphere(){
             //ground truth values
             static auto initial_pos_gt = response.image[i].camera_position;
 
-            if (camera_names[i] == "right" || camera_names[i] == "left") {
+            if (camera_names[i] == "right" || camera_names[i] == "left" ||
+            		camera_names[i] == "top" || camera_names[i] == "down") {
             	result.poses_gt[i].position.x = hardcoded_camera_pos.position.x;
             	result.poses_gt[i].position.y = hardcoded_camera_pos.position.y;
             	result.poses_gt[i].position.z = hardcoded_camera_pos.position.z;
