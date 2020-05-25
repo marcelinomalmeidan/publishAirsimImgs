@@ -472,6 +472,12 @@ struct image_response_decoded input_sampler::image_decode_sphere(){
 
         struct image_response_decoded result;
 
+        geometry_msgs::Pose hardcoded_camera_pos;
+        static auto hardcoded_initial_pos_gt = response.image[0].camera_position;
+		hardcoded_camera_pos.position.x = response.image[0].camera_position.x() - hardcoded_initial_pos_gt.x();
+		hardcoded_camera_pos.position.y = response.image[0].camera_position.y() - hardcoded_initial_pos_gt.y();
+		hardcoded_camera_pos.position.z = response.image[0].camera_position.z() - hardcoded_initial_pos_gt.z();
+
         for (int i = 0; i < N_CAMERAS; ++i) {
             result.depths.push_back(cv::Mat());
 
@@ -486,29 +492,24 @@ struct image_response_decoded input_sampler::image_decode_sphere(){
             result.poses_gt.push_back(geometry_msgs::Pose());
 
             //ground truth values
-            static auto initial_pos_gt= response.image[i].camera_position;
+            static auto initial_pos_gt = response.image[i].camera_position;
 
-            result.poses_gt[i].position.x = response.image[i].camera_position.x() - initial_pos_gt.x();
-            result.poses_gt[i].position.y = response.image[i].camera_position.y() - initial_pos_gt.y();
-            result.poses_gt[i].position.z = response.image[i].camera_position.z() - initial_pos_gt.z();
+            if (camera_names[i] == "right" || camera_names[i] == "left") {
+            	result.poses_gt[i].position.x = hardcoded_camera_pos.position.x;
+            	result.poses_gt[i].position.y = hardcoded_camera_pos.position.y;
+            	result.poses_gt[i].position.z = hardcoded_camera_pos.position.z;
+            }
+            else {
+				result.poses_gt[i].position.x = response.image[i].camera_position.x() - initial_pos_gt.x();
+				result.poses_gt[i].position.y = response.image[i].camera_position.y() - initial_pos_gt.y();
+				result.poses_gt[i].position.z = response.image[i].camera_position.z() - initial_pos_gt.z();
+            }
 
             result.poses_gt[i].orientation.x = response.image[i].camera_orientation.x();
             result.poses_gt[i].orientation.y = response.image[i].camera_orientation.y();
             result.poses_gt[i].orientation.z = response.image[i].camera_orientation.z();
             result.poses_gt[i].orientation.w = response.image[i].camera_orientation.w();
         }
-
-        //ground truth values
-        //static auto initial_pos_gt= response.image.back().camera_position;
-
-        //result.pose_gt.position.x = response.image.back().camera_position.x() - initial_pos_gt.x();
-        //result.pose_gt.position.y = response.image.back().camera_position.y() - initial_pos_gt.y();
-        //result.pose_gt.position.z = response.image.back().camera_position.z() - initial_pos_gt.z();
-
-        //result.pose_gt.orientation.x = response.image.back().camera_orientation.x();
-        //result.pose_gt.orientation.y = response.image.back().camera_orientation.y();
-        //result.pose_gt.orientation.z = response.image.back().camera_orientation.z();
-        //result.pose_gt.orientation.w = response.image.back().camera_orientation.w();
 
         //// this isn't relevant for roborun since we're using
         // ground truth for localization to begin with

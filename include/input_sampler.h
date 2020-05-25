@@ -9,11 +9,11 @@
 #include <geometry_msgs/Twist.h>
 #include "common/Common.hpp"
 //#include "configs.h"
-#define N_CAMERAS 3
+#define N_CAMERAS 4
 
 const std::string camera_names[] = {
     "front",
-	"down",
+	//"down",
     "back",
     "right",
 	"left"
@@ -25,10 +25,10 @@ using ImageTyp = msr::airlib::ImageCaptureBase::ImageType;
 
 const ImageReq request_options[] = {
 	ImageReq(0, ImageTyp::DepthPlanner), // center front
-	ImageReq(3, ImageTyp::DepthPlanner), // center downward
+	//ImageReq(3, ImageTyp::DepthPlanner), // center downward
 	ImageReq(4, ImageTyp::DepthPlanner),  // center rear
-	//ImageReq(5, ImageTyp::DepthPlanner),  // center right
-	//ImageReq(6, ImageTyp::DepthPlanner)  // center left
+	ImageReq(5, ImageTyp::DepthPlanner),  // center right
+	ImageReq(6, ImageTyp::DepthPlanner)  // center left
 };
 
 // Control functions
