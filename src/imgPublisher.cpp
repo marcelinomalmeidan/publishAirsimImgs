@@ -162,16 +162,18 @@ void do_nothing(){
 }
 //std::thread poll_frame_thread(do_nothing);
 
-
 int main(int argc, char **argv)
 {
   
-  //Start ROS ----------------------------------------------------------------
+    //Start ROS ----------------------------------------------------------------
   ros::init(argc, argv, "airsim_imgPublisher");
   ros::NodeHandle n;
 
+  int N_CAMERAS = 0;
   double loop_rate_hz;
   ros::param::get("/airsim_imgPublisher/loop_rate", loop_rate_hz);
+  ros::param::get("/num_cameras", N_CAMERAS);
+  
   ros::Rate loop_rate(loop_rate_hz);
     
   //ROS Messages
@@ -200,7 +202,7 @@ int main(int argc, char **argv)
   ROS_INFO("Port: %d", port);
   
   //Local variables
-  input_sampler input_sample__obj(ip_addr.c_str(), port, localization_method);
+  input_sampler input_sample__obj(ip_addr.c_str(), port, localization_method, N_CAMERAS);
 
   bool all_front = false;
   if (!ros::param::get("/airsim_imgPublisher/all_front",all_front)){

@@ -9,7 +9,6 @@
 #include <geometry_msgs/Twist.h>
 #include "common/Common.hpp"
 //#include "configs.h"
-#define N_CAMERAS 6
 
 const std::string camera_names[] = {
     "front",
@@ -73,7 +72,7 @@ class input_sampler {
 public:
 	input_sampler();
 	input_sampler(const std::string& ip_addr, uint16_t port);
-	input_sampler(const std::string& ip_addr, uint16_t port, std::string localization_method);
+	input_sampler(const std::string& ip_addr, uint16_t port, std::string localization_method, int N_CAMERAS);
 	~input_sampler();
 
 	// *** F:DN Control functions
@@ -93,7 +92,7 @@ public:
     struct image_response_decoded poll_frame_and_decode();
     struct image_response_decoded image_decode(bool);
     struct image_response_decoded image_decode_sphere();
-
+    int N_CAMERAS;
 private:
      std::string localization_method;	
     msr::airlib::MultirotorRpcLibClient * client;

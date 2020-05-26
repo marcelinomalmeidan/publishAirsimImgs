@@ -15,7 +15,8 @@ std::mutex client_mutex;
 volatile bool exit_out = false;
 input_sampler::input_sampler() : client(0), localization_method("ground_truth"), ip_addr("not provided"), port(000)
 {
-	connect();
+    connect();
+    this->N_CAMERAS = 1;
 }
 
 input_sampler::input_sampler(const std::string& ip_addr, uint16_t port) : client(0), localization_method("ground_truth")
@@ -23,15 +24,17 @@ input_sampler::input_sampler(const std::string& ip_addr, uint16_t port) : client
       this->ip_addr = ip_addr;
       this->port = port;
       connect(ip_addr, port);
+      this->N_CAMERAS = 1;
 }
 
 
-input_sampler::input_sampler(const std::string& ip_addr, uint16_t port, std::string localization_method) : client(0)
+input_sampler::input_sampler(const std::string& ip_addr, uint16_t port, std::string localization_method, int N_CAMERAS) : client(0)
 {
 	connect(ip_addr, port);
       this->ip_addr = ip_addr;
       this->port = port;
       this->localization_method = localization_method;
+      this->N_CAMERAS = N_CAMERAS;
 }
 
 
@@ -402,7 +405,7 @@ void input_sampler::poll_frame_sphere()
     const int max_tries = 1000000;
     
     std::vector<ImageReq> request;
-    for (int i = 0; i < N_CAMERAS; ++i) {
+    for (int i = 0; i < this->N_CAMERAS; ++i) {
     	request.push_back(request_options[i]);
     }
 
@@ -478,7 +481,7 @@ struct image_response_decoded input_sampler::image_decode_sphere(){
 		hardcoded_camera_pos.position.y = response.image[0].camera_position.y() - hardcoded_initial_pos_gt.y();
 		hardcoded_camera_pos.position.z = response.image[0].camera_position.z() - hardcoded_initial_pos_gt.z();
 
-        for (int i = 0; i < N_CAMERAS; ++i) {
+        for (int i = 0; i < this->N_CAMERAS; ++i) {
             result.depths.push_back(cv::Mat());
 
 #if CV_MAJOR_VERSION==3
